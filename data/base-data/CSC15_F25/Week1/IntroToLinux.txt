@@ -1,0 +1,157 @@
+Basic Linux Commands
+
+This is a list of frequent Linux commands that allow you to check, modify the files in your account: pwd, ls, cd, mkdir, rmdir, rm, cp, mv. Try these Linux commands from the terminal window by typing their name at the prompt sign. To find more information about a command you can use man <command name> at the prompt. Browse the help of each of the following Linux commands and make notes on what you found interesting.
+
+Linux Commands:
+
+1.  pwd 
+		lists the path to the current directory and the name of the
+		current directory
+
+	Path: is a list of directories separated by /. Indicates the "path" from
+		  the root directory to the current directory.
+
+	After logging in, the current directory is your home directory and the
+	path to it is: home/<your user name>.  Write that path down in the
+	report.
+
+Home directory is the root directory for your account. You have certain
+privileges in the home directory: write/delete, create directories,
+execute files, etc. This is the only directory where you have full
+access. All the directories/files you create here inherits all the
+privileges of the home directory. In home directory you will create new
+directories to store your C++ program files, you will compile and
+execute the java programs.
+
+2.  ls 
+		lists the files and directories in your current directory
+
+	- to list all files and directories in the current directory type: 
+				ls <Enter>
+
+	- to list all files you have in a directory (including system files)
+		type:  	ls -a <Enter>
+
+	Note the difference between ls and ls -a.
+
+	- to list all your files and directories plus information about: the
+	file type (extension e.g. (.exe, .txt, etc.), the date created, the
+	size, type: 
+				ls -l <Enter> . 
+	
+	Note the difference between ls and ls -l.
+
+	Identify at least 2 files and two directories in your home
+	directory. What is the difference in information listed by ls -l 
+	for a file or a directory? 
+
+	- to search for specific files use: ls <file name>
+
+	- in <file name> you can use * to substitute for any character, any
+	number of characters.  <file name> can contain the name of a file with
+	or without wild card characters (e.g. *) or a path.
+
+	ex. Want to see the list of files with extension java: ls *.java
+
+	ex. the list of executable files: ls *.exe
+
+3.  cd 
+		changes the current directory
+
+	Ex.  cd <directory name>   
+			changes the current directory to <directory name>. 
+			If <directory name> contains the name of a directory then that
+			directory must be a child (a part of) the current directory.
+
+	- <directory name> can also be a path to another directory.
+
+4.  mkdir 
+		creates a new directory
+
+	Ex. mkdir <directory name> 
+		Creates a new directory with the name <directory name> in the 
+		current directory.
+
+5.  rmdir 
+		deletes a directory if it is empty (there are no other files
+		or directories in it)]
+
+		Ex. rmdir <directory name>
+
+6.  rm 
+		deletes one or more files in the current directory
+
+	Ex. rm <file name> 
+		deletes the file with the name <file name>. In <file name> you can use 
+		wild card characters (e.g. *) or a path followed
+		by a file name. Be careful, you will not be able to recover the file(s)
+		you delete using rm.
+
+7.  cp 
+	copies files from one directory to another
+
+	Ex. cp <source file> <destination file> 
+		Copies <source file> into <destionation file>.
+
+		<destination file> can specify a directory. Then <source file> is copied
+		into directory.
+
+8.  mv 
+	moves a file from one directory to another. It deletes the file
+	from the source location
+
+	Ex. mv <source file> <destination file> 
+	 moves <source file> into <destination file>. If <destination file>
+indicates 
+	 a directory it moves <source file> into the specified directory.
+
+Special characters in a path name:
+
+	~ Signals the path to your home directory. It is used at the beginning
+	of a path name.
+
+	Ex. cd ~ it takes you back from any directory to your home directory.
+
+	Ex. cd ~/directory1/directory2/ - moves to directory2, which is a child
+	of directory1, which is a child of your home directory.
+
+	..  (Double dots) Signifies a node up in the directory tree. It is
+	relative to the current directory not to the home directory.
+
+	Ex.  If the path to current directory is: home/user/
+
+	cd ../../ - takes the prompt from the current directory two directories
+	up the tree, to directory user.
+
+	Executing pwd after this cd command it will show you: home/user/
+
+	Ex. If you want to copy a file from directory user to directory classes
+	and your current directory is JAVA:
+
+	cp ../file1.java CLASSES/ - the result of this command is that the
+	file1.java from home/user/ was copied (with the same name) in 
+	home/user/JAVA/CLASSES/
+
+	.  (Single dot) Specifies the current directory.
+
+	Ex. If you want to copy a file from your home directory in the current
+	directory use:
+
+	cp ~/file1.java .  - The dot specifies the destination, which is your
+	current directory.
+
+
+Other useful commands: ps, kill, who
+
+9.  ps
+		shows the state of all processes that run on your computer.
+
+10.  kill 
+		process_id - kills a process.
+
+11.  who 
+		lists the name of the users connected to a machine.
+
+For more information about any command type: 
+	man <command name> 
+
