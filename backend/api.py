@@ -11,12 +11,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend.api")
 
 # Configuration via env vars with sensible defaults
-INDEX_DIR = os.environ.get("INDEX_DIR", ".embeddings/index_store")
-DATA_DIR = os.environ.get("DATA_DIR", "../test/data/CSC15")
+INDEX_DIR = os.environ.get("INDEX_DIR", "./index_store")
+DATA_DIR = os.environ.get("DATA_DIR", "./trial-data")
 # directory where embedding definition lives (model.txt or config.json)
 EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")
 OLLAMA_LLM = os.environ.get("OLLAMA_LLM", "llama3-chatqa")
-OLLAMA_EMBED = os.environ.get("OLLAMA_EMBED", "qwen3-embedding:8b")
+OLLAMA_EMBED = os.environ.get("OLLAMA_EMBED", "bge-m3:latest")
 DEFAULT_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "5.0"))
 DEFAULT_MAX_TOKENS = int(os.environ.get("OLLAMA_MAX_TOKENS", "1024"))
 
@@ -248,6 +248,8 @@ def query_v2():
 		# run the query
 		logger.info(f"Received v2 query; model={requested_model}, rebuild={rebuild}, retrieval={bool(retrieval)}")
 		response = query_engine.query(question)
+		print(f"Response :{type(response)}")
+
 		answer_text = str(response)
 		return jsonify({"answer": answer_text}), 200
 

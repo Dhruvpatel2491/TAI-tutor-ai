@@ -1,0 +1,24 @@
+# --- Web Framework ---
+Flask==3.0.3
+gunicorn==23.0.0
+
+# --- Core LlamaIndex + Ollama Integrations ---
+llama-index==0.14.8
+llama-index-llms-ollama==0.9.0
+llama-index-embeddings-ollama==0.8.4
+ollama>=0.1.0
+
+# --- Document & Data Processing ---
+PyMuPDF==1.24.9           # provides `fitz`
+python-pptx==0.6.23
+tree_sitter==0.20.4
+nbformat==5.10.4
+pydantic>=2.11.5,<3.0.0  # <-- changed: compatible with llama-index-workflows
+requests==2.32.3
+ujson==5.10.0
+
+docx2txt
+
+# --- Utilities ---
+python-dotenv==1.0.1
+typing-extensions==4.12.2

@@ -1,14 +1,25 @@
 {
   "files": [
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\Lecture1_Intro_Python.pptx",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\Lecture2_Data_Variables.pptx",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\Lecture3_Input_Output.pptx",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\ex_data_types.py",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\ex_string1.py",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\ex_trunc_ceil_round.py",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\first_program.py",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\string_exercises.txt",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\Week1\\sum_limit.py",
-    "D:\\Dhruv Patel - Academia\\Education\\Graduate - Hofstra University\\2025-Fall - Sem4\\Capstone Code\\TAI-tutor-ai\\test\\data\\CSC15\\csc15_syll_f25.docx"
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/IntroToLinux.txt",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/Lecture1_Intro_Python.pptx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/Lecture2_Data_Variables.pptx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/Lecture3_Input_Output.pptx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/Survey_CSC15.docx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/ex_data_types.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/ex_string1.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/ex_trunc_ceil_round.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/first_program.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/string_exercises.txt",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week1/sum_limit.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Lecture1_Operators_MixedType.pptx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Lecture2_Ifs.pptx",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/cee_lo_game.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/ex_comparison_floating.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/ex_if_else.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/ex_random.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/ex_string.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/Week2ClassCode/ex_trunc_ceil_round.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/class_exercises.py",
+    "/home/h703255227/Documents/00Capstone/TAI-tutor-ai/backend/trial-data/Week2/if_example.py"
   ]
 }
