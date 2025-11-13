@@ -41,6 +41,9 @@ DATA_DIR = "./data/"
 # LlamaIndex currently expects a `docstore.json` for simple_docstore, so include it.
 EXPECTED_PERSIST_FILES = ["docstore.json"]
 
+# Add embedding metadata filename
+EMBEDDING_META_FILENAME = "embeddings_meta.json"
+
 # ----------------------------- LOGGING -----------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -210,6 +213,75 @@ def load_multimodal_documents(directory: str):
 
     return docs
 
+# New helper: load docs for an explicit list of file paths (absolute paths)
+def load_documents_for_paths(paths):
+    """Load a list of file paths into llama_index Documents (uses the same extractors)."""
+    from llama_index.core.schema import Document
+    docs = []
+    for path in paths:
+        try:
+            if not os.path.exists(path):
+                logger.warning(f"Path not found while building selective docs: {path}")
+                continue
+            ext = Path(path).suffix.lower()
+            if ext == ".pdf":
+                logger.info(f"[delta] Parsing PDF: {path}")
+                text = extract_text_from_pdf(path)
+                if text:
+                    docs.append(Document(text=text, metadata={"type": "pdf", "path": path}))
+            elif ext == ".pptx":
+                logger.info(f"[delta] Parsing PPTX: {path}")
+                text = extract_text_from_pptx(path)
+                if text:
+                    docs.append(Document(text=text, metadata={"type": "pptx", "path": path}))
+            elif ext == ".ipynb":
+                logger.info(f"[delta] Parsing notebook: {path}")
+                text = extract_notebook_cells(path)
+                if text:
+                    docs.append(Document(text=text, metadata={"type": "notebook", "path": path}))
+            elif ext == ".py":
+                logger.info(f"[delta] Parsing Python code (AST): {path}")
+                text = extract_code_with_ast(path)
+                if text:
+                    docs.append(Document(text=text, metadata={"type": "python", "path": path}))
+            elif ext in [".java", ".cpp", ".js", ".c"]:
+                logger.info(f"[delta] Parsing {ext} code with Tree-sitter: {path}")
+                lang = ext.strip(".")
+                text = extract_code_with_treesitter(path, language=lang)
+                if text:
+                    docs.append(Document(text=text, metadata={"type": "code", "lang": lang, "path": path}))
+            else:
+                logger.info(f"[delta] Fallback reader for: {path}")
+                fallback = SimpleDirectoryReader(input_files=[path])
+                loaded = fallback.load_data()
+                docs.extend(loaded)
+        except Exception as e:
+            logger.error(f"Failed to parse {path}: {e}")
+    return docs
+
+# New helpers: metadata load/save
+def _meta_path(index_dir):
+    return os.path.join(index_dir, EMBEDDING_META_FILENAME)
+
+def load_embedding_metadata(index_dir):
+    """Return a set of absolute file paths that were already embedded."""
+    meta_file = _meta_path(index_dir)
+    try:
+        with open(meta_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return set(data.get("files", []))
+    except Exception:
+        return set()
+
+def save_embedding_metadata(index_dir, files_set):
+    """Persist the set of absolute file paths that have embeddings."""
+    os.makedirs(index_dir, exist_ok=True)
+    meta_file = _meta_path(index_dir)
+    try:
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump({"files": sorted(list(files_set))}, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Could not write embedding metadata file: {e}")
 
 # ----------------------------- INDEX MANAGEMENT -----------------------------
 
@@ -254,6 +326,55 @@ def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, fo
             storage_context = StorageContext.from_defaults(persist_dir=index_dir_abs)
             index = load_index_from_storage(storage_context)
             logger.info("✅ Loaded existing index successfully.")
+
+            # --- NEW: check embedding metadata for new files to embed ---
+            try:
+                # collect absolute paths of current data files
+                current_files = set()
+                for root, _, files in os.walk(data_dir):
+                    for fname in files:
+                        current_files.add(os.path.abspath(os.path.join(root, fname)))
+
+                recorded = load_embedding_metadata(index_dir_abs)
+
+                if not recorded:
+                    # metadata missing: create metadata from current files (we assume existing index covers them)
+                    save_embedding_metadata(index_dir_abs, current_files)
+                    logger.info("Initialized embedding metadata from current files.")
+                else:
+                    new_files = current_files - recorded
+                    if new_files:
+                        logger.info(f"Found {len(new_files)} new file(s) to embed.")
+                        new_docs = load_documents_for_paths(list(new_files))
+                        if new_docs:
+                            try:
+                                # try incremental insertion using available API
+                                if hasattr(index, "insert_documents"):
+                                    index.insert_documents(new_docs)
+                                elif hasattr(index, "add_documents"):
+                                    index.add_documents(new_docs)
+                                else:
+                                    # fallback: rebuild entire index from all documents (safer fallback)
+                                    logger.warning("Index doesn't support incremental insert; rebuilding full index to add new files.")
+                                    all_docs = load_multimodal_documents(data_dir)
+                                    parser = SimpleNodeParser.from_defaults(chunk_size=1000, chunk_overlap=200)
+                                    nodes = parser.get_nodes_from_documents(all_docs)
+                                    index = VectorStoreIndex(nodes)
+
+                                # persist and update metadata
+                                try:
+                                    index.storage_context.persist(persist_dir=index_dir_abs)
+                                except Exception as perr:
+                                    logger.warning(f"Could not persist index after adding new docs: {perr}")
+                                save_embedding_metadata(index_dir_abs, recorded.union(new_files))
+                                logger.info("✅ Added embeddings for new files and updated metadata.")
+                            except Exception as e:
+                                logger.error(f"Failed to add new documents to index: {e}")
+                        else:
+                            logger.info("No documents were created from new files (skipping).")
+            except Exception as meta_err:
+                logger.warning(f"Embedding metadata check failed: {meta_err}")
+
             return index
         except Exception as e:
             logger.error(f"Failed to load existing index (will attempt to rebuild). Error: {e}")
@@ -286,6 +407,17 @@ def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, fo
         logger.error(f"Failed to persist index to {index_dir_abs}: {e}")
         raise
 
+    # --- NEW: save metadata of all current files as having been embedded ---
+    try:
+        current_files = set()
+        for root, _, files in os.walk(data_dir):
+            for fname in files:
+                current_files.add(os.path.abspath(os.path.join(root, fname)))
+        save_embedding_metadata(index_dir_abs, current_files)
+        logger.info("Saved embedding metadata for newly built index.")
+    except Exception as e:
+        logger.warning(f"Could not save embedding metadata after building index: {e}")
+
     logger.info(f"✅ Index built and persisted to {index_dir_abs}")
     return index
 
@@ -296,8 +428,8 @@ def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, fo
 def main(args):
     # initialize embedding & LLM models (adjust models to your environment)
     logger.info("Initializing embedding & LLM models...")
-    Settings.embed_model = OllamaEmbedding(model_name="embeddinggemma")
-    Settings.llm = Ollama(model="gpt-oss:latest")
+    Settings.embed_model = OllamaEmbedding(model_name="qwen3-embedding:8b")
+    Settings.llm = Ollama(model="llama3-chatqa")
 
     # Decide whether to force rebuild: CLI flag > env var
     force_flag = args.rebuild or os.environ.get("FORCE_REBUILD", "0") == "1"
@@ -323,7 +455,7 @@ def main(args):
                 print(f"\nAI: {response}\n")
             except Exception as e:
                 logger.error(f"Query engine error: {e}")
-                print("AI: (error handling your request — see logs)")
+                print("AI:[ERROR] (error handling your request — see logs)")
 
     chat()
 
