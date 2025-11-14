@@ -5,20 +5,25 @@ import logging
 import json
 import importlib.util
 from pathlib import Path
+from llm_methods import get_or_create_index
 
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend.api")
 
 # Configuration via env vars with sensible defaults
-INDEX_DIR = os.environ.get("INDEX_DIR", "./index_store")
-DATA_DIR = os.environ.get("DATA_DIR", "./trial-data")
+INDEX_DIR 	= "./index_store"
+DATA_DIR 	= "./trial-data"
 # directory where embedding definition lives (model.txt or config.json)
-EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")
-OLLAMA_LLM = os.environ.get("OLLAMA_LLM", "llama3-chatqa")
-OLLAMA_EMBED = os.environ.get("OLLAMA_EMBED", "bge-m3:latest")
-DEFAULT_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "5.0"))
-DEFAULT_MAX_TOKENS = int(os.environ.get("OLLAMA_MAX_TOKENS", "1024"))
+EMBEDDINGS_DIR 		= "./embeddings"
+OLLAMA_LLM			= "llama3-chatqa:latest"
+OLLAMA_EMBED 		= "bge-m3:latest"
+DEFAULT_TEMPERATURE = 5.0
+DEFAULT_MAX_TOKENS 	= 1024
+DEFAULT_TIMEOUT	= 300  # seconds
 
 # Lazy-loaded globals
 _index_lock = threading.Lock()
@@ -32,28 +37,6 @@ try:
     from llama_index.core.settings import Settings  # noqa: E402
 except Exception as e:
     logger.error(f"Failed to import Ollama or LlamaIndex classes: {e}")
-    raise
-
-# Dynamically load local test/test.py to avoid colliding with stdlib 'test' package.
-def _load_local_test_module():
-    # compute path: project_root/test/test.py relative to this file
-    cur = Path(__file__).resolve()
-    candidate = (cur.parent.parent / "test" / "test.py").resolve()
-    if not candidate.exists():
-        raise FileNotFoundError(f"Local test.py not found at expected path: {candidate}")
-    spec = importlib.util.spec_from_file_location("project_test", str(candidate))
-    module = importlib.util.module_from_spec(spec)
-    loader = spec.loader
-    if loader is None:
-        raise ImportError(f"Could not load spec for {candidate}")
-    loader.exec_module(module)
-    return module
-
-try:
-    _local_test = _load_local_test_module()
-    get_or_create_index = getattr(_local_test, "get_or_create_index")
-except Exception as e:
-    logger.error(f"Failed to load local test module: {e}")
     raise
 
 # helper to read embedding model name from embeddings folder
@@ -79,9 +62,9 @@ def init_models():
     """Initialize Settings for embedding and llm models (idempotent)."""
     try:
         # prefer embedding model specified in embeddings folder, then env var, then default
-        embed_model_name = _read_embedding_model_from_folder(EMBEDDINGS_DIR, fallback=os.environ.get("OLLAMA_EMBED", OLLAMA_EMBED))
-        Settings.embed_model = OllamaEmbedding(model_name=embed_model_name, max_tokens=DEFAULT_MAX_TOKENS)
-        Settings.llm = Ollama(model=OLLAMA_LLM, temperature=DEFAULT_TEMPERATURE, max_tokens=DEFAULT_MAX_TOKENS)
+        embed_model_name = _read_embedding_model_from_folder(EMBEDDINGS_DIR, fallback= OLLAMA_EMBED)
+        Settings.embed_model = OllamaEmbedding(model_name=embed_model_name, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=DEFAULT_TIMEOUT)
+        Settings.llm = Ollama(model=OLLAMA_LLM, temperature=DEFAULT_TEMPERATURE, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=DEFAULT_TIMEOUT)
         logger.info(f"Initialized Ollama LLM='{OLLAMA_LLM}' embed='{embed_model_name}'")
     except Exception as e:
         logger.error(f"Could not initialize Ollama models: {e}")
@@ -149,7 +132,7 @@ def query():
 
 	try:
 		# Pass build-time params only when forcing a rebuild; otherwise ignore them in get_index
-		index_obj, qe = get_index(force_rebuild=rebuild, build_kwargs=(indexing if rebuild else None))
+		index_obj, qe = get_index(queryforce_rebuild=rebuild, build_kwargs=(indexing if rebuild else None))
 		if index_obj is None:
 			return jsonify({"error": "index not available"}), 500
 
@@ -178,7 +161,7 @@ def query():
 		return jsonify({"error": str(e)}), 500
 
 # New endpoint: version 2 allows specifying "model" (LLM) in the request body.
-@app.route("/query_v2", methods=["POST"])
+@app.route("/query_v2", methods=["POST","OPTIONS"])
 def query_v2():
 	"""
 	POST /query_v2
@@ -197,7 +180,7 @@ def query_v2():
 	if not question:
 		return jsonify({"error": "missing 'question' in body"}), 400
 
-	requested_model = payload.get("model") or os.environ.get("OLLAMA_LLM", OLLAMA_LLM)
+	requested_model = payload.get("model") or  OLLAMA_LLM
 	try:
 		temp = float(payload.get("temperature", DEFAULT_TEMPERATURE))
 	except Exception:
@@ -223,7 +206,7 @@ def query_v2():
 
 		# instantiate per-request Ollama model
 		try:
-			per_request_llm = Ollama(model=requested_model, temperature=temp, max_tokens=max_toks)
+			per_request_llm = Ollama(model=requested_model, temperature=temp, max_tokens=max_toks, request_timeout=300)
 		except Exception as e:
 			logger.exception("Failed to instantiate per-request Ollama model")
 			return jsonify({"error": f"failed to instantiate model '{requested_model}': {e}"}), 500
@@ -248,7 +231,7 @@ def query_v2():
 		# run the query
 		logger.info(f"Received v2 query; model={requested_model}, rebuild={rebuild}, retrieval={bool(retrieval)}")
 		response = query_engine.query(question)
-		print(f"Response :{type(response)}")
+		print(f"Response :{str(response)}")
 
 		answer_text = str(response)
 		return jsonify({"answer": answer_text}), 200
@@ -289,4 +272,4 @@ def rebuild():
 if __name__ == "__main__":
     # Simple dev server (for production use gunicorn/uwsgi)
     port = int(os.environ.get("BACKEND_PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)

@@ -1,7 +1,8 @@
 .venv
 
+backend/__pycache__/*
+backend/index_store/*
+
 test/__pycache__/*
 
 frontend/node_modules/*
-
-backend/__pycache__/*
