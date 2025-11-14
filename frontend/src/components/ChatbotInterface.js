@@ -11,11 +11,16 @@ const INITIAL_MESSAGE = {
   timestamp: new Date()
 };
 const DEFAULT_MODEL = 'llama2';
-const AVAILABLE_MODELS = ['llama3-chatqa', 'llama2', 'gpt-oss:latest', 'llama3:8b'];
+const AVAILABLE_MODELS = ['llama3-chatqa', 'llama2', 'gpt-oss:latest', 'llama3:8b','codegemma:7b'];
 const DEFAULT_BACKEND_URL = 'http://147.4.122.14:5000';
 const BACKEND_TIMEOUT = 5000;
 const QUERY_TIMEOUT = 120000;
 const HEALTH_CHECK_INTERVAL = 60000;
+
+// Normalized status constants
+const STATUS_CONNECTED = 'connected';
+const STATUS_DISCONNECTED = 'disconnected';
+const STATUS_CHECKING = 'checking';
 
 const ChatbotInterface = () => {
   // State - Messages
@@ -30,7 +35,7 @@ const ChatbotInterface = () => {
 
   // State - Backend Connection
   const [backendURL, setBackendURL] = useState(DEFAULT_BACKEND_URL);
-  const [backendStatus, setBackendStatus] = useState('Checking...  ');
+  const [backendStatus, setBackendStatus] = useState(STATUS_CHECKING);
   const [showURLInput, setShowURLInput] = useState(false);
   const [tempURL, setTempURL] = useState(backendURL);
 
@@ -51,10 +56,10 @@ const ChatbotInterface = () => {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-
-      setBackendStatus(response.ok ? 'connected✅  ' : 'disconnected❌  ');
+      setBackendStatus(response.ok ? STATUS_CONNECTED : STATUS_DISCONNECTED);
     } catch (error) {
-      setBackendStatus('disconnected❌  ');
+      // network or fetch error -> treat as disconnected
+      setBackendStatus(STATUS_DISCONNECTED);
     }
   }, [backendURL]);
 
@@ -101,8 +106,9 @@ const ChatbotInterface = () => {
         body: JSON.stringify({
           question: questionText,
           model: selectedModel,
-          temperature: 5.0,
-          max_tokens: 1024,
+          // rebuild: false,
+          // temperature: 5.0,
+          // max_tokens: 1024,
           stream: false,
           retrieval: { similarity_top_k: 6, rerank_top_k: 3 }
         })
@@ -139,7 +145,7 @@ const ChatbotInterface = () => {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-      setBackendStatus('disconnected❌  ');
+      setBackendStatus(STATUS_DISCONNECTED);
     } finally {
       setLoading(false);
     }
@@ -157,41 +163,92 @@ const ChatbotInterface = () => {
     }
   };
 
+  // derive a simple status class for styling (connected/disconnected/unknown)
+  const statusClass = backendStatus === STATUS_CONNECTED
+    ? 'status-connected'
+    : (backendStatus === STATUS_DISCONNECTED ? 'status-disconnected' : 'status-unknown');
+
+  const statusText = backendStatus === STATUS_CONNECTED
+    ? 'Connected'
+    : (backendStatus === STATUS_DISCONNECTED ? 'Disconnected' : 'Checking...');
+
   return (
     <div className="chatbot-container">
-      {/* Header */}
-      <div className="chatbot-header">
-        <h1>TAI Tutor</h1>
-        <p>AI-Powered Learning Assistant</p>
-        <div className="backend-status">
-          <span className={`status-indicator ${backendStatus}`}></span>
-          <span className="status-text">Backend: {backendStatus}</span>
-          <button
-            className="url-config-btn"
-            onClick={() => setShowURLInput(!showURLInput)}
-            aria-label="Configure backend URL"
-          >
-            ⚙️
-          </button>
+      {/* Top: header (left) and backend/status (right) */}
+      <div className="chatbot-top">
+        <div className="chatbot-header-left">
+          <h1>TAI Tutor</h1>
+          <p>AI-Powered Learning Assistant</p>
+        </div>
+
+        <div className="chatbot-header-side">
+          <div className="backend-status">
+            {/* colored dot */}
+            <span className={`status-indicator ${statusClass}`}></span>
+            <span className="status-text">{statusText}</span>
+            {/* retry button */}
+            <button
+              className="status-retry-btn"
+              onClick={checkBackendConnection}
+              aria-label="Retry backend health check"
+              title="Retry"
+            >
+              ⟳
+            </button>
+            {/* settings */}
+            <button
+              className="url-config-btn"
+              onClick={() => setShowURLInput(!showURLInput)}
+              aria-label="Configure backend URL"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* URL Configuration */}
+      {/* URL Configuration Modal */}
       {showURLInput && (
-        <div className="url-input-container">
-          <input
-            type="text"
-            value={tempURL}
-            onChange={(e) => setTempURL(e.target.value)}
-            placeholder="Backend URL"
-            className="url-input"
-          />
-          <button onClick={handleUpdateURL} className="url-confirm-btn">
-            Update
-          </button>
-          <button onClick={() => setShowURLInput(false)} className="url-cancel-btn">
-            Cancel
-          </button>
+        <div
+          className="url-modal-backdrop"
+          onClick={() => setShowURLInput(false)}
+          role="presentation"
+        >
+          <div
+            className="url-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Backend URL configuration"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="url-modal-header">
+              <h3>Configure Backend URL</h3>
+              <button
+                className="url-modal-close"
+                onClick={() => setShowURLInput(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="url-input-container">
+              <input
+                type="text"
+                value={tempURL}
+                onChange={(e) => setTempURL(e.target.value)}
+                placeholder="Backend URL"
+                className="url-input"
+              />
+              <div className="url-modal-actions">
+                <button onClick={handleUpdateURL} className="url-confirm-btn">
+                  Update
+                </button>
+                <button onClick={() => setShowURLInput(false)} className="url-cancel-btn">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
