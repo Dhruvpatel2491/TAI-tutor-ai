@@ -1,5 +1,8 @@
 .venv
-backend/index_store/*.json
-test/__pycache__
+
 backend/__pycache__/*
-backend/index_store/
+backend/index_store/*
+
+test/__pycache__/*
+
+frontend/node_modules/*

@@ -1,0 +1,40 @@
+.formatted-message {
+  width: 100%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.code-block {
+  background-color: #f4f4f4;
+  border-left: 4px solid #007bff;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 10px 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.code-block code {
+  color: #333;
+}
+
+.text-block {
+  margin: 8px 0;
+}
+
+.paragraph {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.list-item {
+  margin-left: 20px;
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.empty-line {
+  height: 8px;
+}
