@@ -1,5 +1,6 @@
 # --- Web Framework ---
 Flask==3.0.3
+flask-cors==4.0.1
 gunicorn==23.0.0
 
 # --- Core LlamaIndex + Ollama Integrations ---
@@ -22,3 +23,4 @@ docx2txt
 # --- Utilities ---
 python-dotenv==1.0.1
 typing-extensions==4.12.2
+

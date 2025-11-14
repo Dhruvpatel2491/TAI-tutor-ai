@@ -7,7 +7,10 @@ import importlib.util
 from pathlib import Path
 from llm_methods import get_or_create_index
 
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend.api")
 
@@ -20,6 +23,7 @@ OLLAMA_LLM			= "llama3-chatqa:latest"
 OLLAMA_EMBED 		= "bge-m3:latest"
 DEFAULT_TEMPERATURE = 5.0
 DEFAULT_MAX_TOKENS 	= 1024
+DEFAULT_TIMEOUT	= 300  # seconds
 
 # Lazy-loaded globals
 _index_lock = threading.Lock()
@@ -59,8 +63,8 @@ def init_models():
     try:
         # prefer embedding model specified in embeddings folder, then env var, then default
         embed_model_name = _read_embedding_model_from_folder(EMBEDDINGS_DIR, fallback= OLLAMA_EMBED)
-        Settings.embed_model = OllamaEmbedding(model_name=embed_model_name, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=300)
-        Settings.llm = Ollama(model=OLLAMA_LLM, temperature=DEFAULT_TEMPERATURE, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=300)
+        Settings.embed_model = OllamaEmbedding(model_name=embed_model_name, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=DEFAULT_TIMEOUT)
+        Settings.llm = Ollama(model=OLLAMA_LLM, temperature=DEFAULT_TEMPERATURE, max_tokens=DEFAULT_MAX_TOKENS, request_timeout=DEFAULT_TIMEOUT)
         logger.info(f"Initialized Ollama LLM='{OLLAMA_LLM}' embed='{embed_model_name}'")
     except Exception as e:
         logger.error(f"Could not initialize Ollama models: {e}")
@@ -157,7 +161,7 @@ def query():
 		return jsonify({"error": str(e)}), 500
 
 # New endpoint: version 2 allows specifying "model" (LLM) in the request body.
-@app.route("/query_v2", methods=["POST"])
+@app.route("/query_v2", methods=["POST","OPTIONS"])
 def query_v2():
 	"""
 	POST /query_v2
