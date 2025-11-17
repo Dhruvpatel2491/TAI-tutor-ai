@@ -22,6 +22,7 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.settings import Settings
@@ -295,9 +296,11 @@ def _index_has_expected_files(index_dir: str, expected_files=EXPECTED_PERSIST_FI
         return False
 
 
-def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, force_rebuild: bool = False):
-    """Reuse existing vector index if available, otherwise rebuild.
+def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, force_rebuild: bool = False, indexing: dict = None):
+    """
+    Reuse existing vector index if available, otherwise rebuild.
     Verifies persistence files and recovers from corrupted index directories.
+    Supports build-time indexing parameters for parser selection.
     """
     index_dir_abs = os.path.abspath(index_dir)
     logger.info(f"Index path: {index_dir_abs}")
@@ -350,7 +353,12 @@ def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, fo
                                     # fallback: rebuild entire index from all documents (safer fallback)
                                     logger.warning("Index doesn't support incremental insert; rebuilding full index to add new files.")
                                     all_docs = load_multimodal_documents(data_dir)
-                                    parser = SimpleNodeParser.from_defaults(chunk_size=1000, chunk_overlap=200)
+                                    parser = SimpleNodeParser.from_defaults(
+                                        chunk_size=1000,
+                                        chunk_overlap=200,
+                                        separator="\n\n",
+                                        include_metadata=True
+                                    )
                                     nodes = parser.get_nodes_from_documents(all_docs)
                                     index = VectorStoreIndex(nodes)
 
@@ -388,7 +396,58 @@ def get_or_create_index(index_dir: str = INDEX_DIR, data_dir: str = DATA_DIR, fo
         logger.error("❌ No documents found to index. Check DATA_DIR and files.")
         raise SystemExit(1)
 
-    parser = SimpleNodeParser.from_defaults(chunk_size=1000, chunk_overlap=200)
+    # --- parser selection logic ---
+    parser = None
+    parser_type = None
+    chunk_size = 1000
+    chunk_overlap = 200
+    separator = "\n\n"
+    include_metadata = True
+
+    if indexing is None:
+        indexing = {}
+
+    # Determine parser type from indexing kwargs
+    parser_type = indexing.get("parser") or indexing.get("splitter")
+    # Accept synonyms for parser selection
+    if not parser_type:
+        # Heuristic: if code-heavy, use CodeSplitterNodeParser
+        # If sentence-level requested, use SentenceSplitter
+        # Otherwise, default to SimpleNodeParser
+        # User can override by passing parser="code" or parser="sentence"
+        parser_type = "simple"
+
+    # Accept chunk_size, chunk_overlap, separator, include_metadata from indexing
+    chunk_size = int(indexing.get("chunk_size", chunk_size))
+    chunk_overlap = int(indexing.get("chunk_overlap", chunk_overlap))
+    separator = indexing.get("separator", separator)
+    include_metadata = bool(indexing.get("include_metadata", include_metadata))
+
+    # Select parser
+    if parser_type.lower() in ["code", "codesplitter"]:
+        # Fallback to SimpleNodeParser if code splitter is requested
+        parser = SimpleNodeParser.from_defaults(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separator=separator,
+            include_metadata=include_metadata
+        )
+    elif parser_type.lower() in ["sentence", "sentencesplitter"]:
+        parser = SentenceSplitter.from_defaults(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separator=separator,
+            include_metadata=include_metadata
+        )
+    else:
+        # Default: mixed content
+        parser = SimpleNodeParser.from_defaults(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separator=separator,
+            include_metadata=include_metadata
+        )
+
     nodes = parser.get_nodes_from_documents(documents)
     index = VectorStoreIndex(nodes)
 
