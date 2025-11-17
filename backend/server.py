@@ -82,9 +82,9 @@ def get_index(force_rebuild: bool = False, build_kwargs: dict | None = None):
 			init_models()
 			try:
 				if build_kwargs and force_rebuild:
-					# try to pass kwargs to get_or_create_index, but be tolerant
+					# Pass indexing dict as 'indexing' kwarg for parser selection
 					try:
-						_index_obj = get_or_create_index(index_dir=INDEX_DIR, data_dir=DATA_DIR, force_rebuild=force_rebuild, **build_kwargs)
+						_index_obj = get_or_create_index(index_dir=INDEX_DIR, data_dir=DATA_DIR, force_rebuild=force_rebuild, indexing=build_kwargs)
 					except TypeError:
 						# signature probably doesn't accept the extra args; retry without them
 						logger.warning("get_or_create_index does not accept build kwargs; retrying without them")
@@ -132,7 +132,7 @@ def query():
 
 	try:
 		# Pass build-time params only when forcing a rebuild; otherwise ignore them in get_index
-		index_obj, qe = get_index(queryforce_rebuild=rebuild, build_kwargs=(indexing if rebuild else None))
+		index_obj, qe = get_index(force_rebuild=rebuild, build_kwargs=(indexing if rebuild else None))
 		if index_obj is None:
 			return jsonify({"error": "index not available"}), 500
 
