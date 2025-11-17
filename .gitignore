@@ -1,8 +1,11 @@
 .venv
 
-backend/__pycache__/*
-backend/index_store/*
+.pytest_cache
 
-test/__pycache__/*
+backend/__pycache__
+backend/index_store
+
+test/__pycache__
 
 frontend/node_modules/*
+data/base-data/CSC15_F25/LongAssignment2/__pycache__/functions.cpython-311.pyc

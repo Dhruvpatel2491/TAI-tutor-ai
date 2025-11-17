@@ -122,14 +122,20 @@ def extract_notebook_cells(filepath: str) -> str:
     """Extract notebook code and markdown cells as JSON."""
     try:
         nb = nbformat.read(filepath, as_version=4)
-        cells = [
-            NotebookCell(
+        # prefer Pydantic v2 `.model_dump()` but fall back to `.dict()` if needed
+        safe_cells = []
+        for c in nb.cells:
+            nc = NotebookCell(
                 cell_type=c.cell_type,
                 source="".join(c.source) if isinstance(c.source, (list, tuple)) else str(c.source),
                 metadata=getattr(c, "metadata", {}),
-            ).dict()
-            for c in nb.cells
-        ]
+            )
+            try:
+                safe_cells.append(nc.model_dump())
+            except Exception:
+                # fallback to instance __dict__ to avoid direct `.dict()` usage
+                safe_cells.append(getattr(nc, "__dict__", {}))
+        cells = safe_cells
         return json.dumps(cells, indent=2)
     except Exception as e:
         logger.error(f"Notebook parse failed for {filepath}: {e}")

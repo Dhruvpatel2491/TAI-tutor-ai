@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/ChatbotInterface.css';
 import FormattedMessage from './FormattedMessage';
 import { formatBotResponse } from '../utils/messageFormatter';
+import { DEFAULT_BACKEND_URL } from '../config';
 
 // Constants
 const INITIAL_MESSAGE = {
@@ -12,7 +13,7 @@ const INITIAL_MESSAGE = {
 };
 const DEFAULT_MODEL = 'llama2';
 const AVAILABLE_MODELS = ['llama3-chatqa', 'llama2', 'gpt-oss:latest', 'llama3:8b','codegemma:7b'];
-const DEFAULT_BACKEND_URL = 'http://147.4.122.14:5000';
+// Use centralized frontend config for backend URL
 const BACKEND_TIMEOUT = 5000;
 const QUERY_TIMEOUT = 120000;
 const HEALTH_CHECK_INTERVAL = 60000;
@@ -106,11 +107,11 @@ const ChatbotInterface = () => {
         body: JSON.stringify({
           question: questionText,
           model: selectedModel,
-          // rebuild: false,
+          rebuild: false,
           // temperature: 5.0,
           // max_tokens: 1024,
-          stream: false,
-          retrieval: { similarity_top_k: 6, rerank_top_k: 3 }
+          // stream: false,
+          // retrieval: { similarity_top_k: 6, rerank_top_k: 3 }
         })
       });
       clearTimeout(timeoutId);
