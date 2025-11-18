@@ -60,19 +60,19 @@ function AuthPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   };
 
   return (
-    <div className="auth-panel">
+    <div className="auth-panel card">
       <h3>Auth</h3>
-      <div>
-        <input placeholder="user id" value={userId} onChange={(e) => setUserId(e.target.value)} />
-        <button onClick={register}>Register</button>
-        <button onClick={login}>Login</button>
-        <button onClick={logout}>Logout</button>
+      <div className="form-row">
+        <input placeholder="user id" value={userId} onChange={(e) => setUserId(e.target.value)} aria-label="user id" />
+  <button type="button" className="btn ml-8" onClick={register}>Register</button>
+  <button type="button" className="btn ml-8" onClick={login}>Login</button>
+  <button type="button" className="btn secondary ml-8" onClick={logout}>Logout</button>
       </div>
-      <div style={{ marginTop: 8 }}>
+      <div className="form-row">
         <strong>Token:</strong>
-        <div style={{ wordBreak: 'break-all' }}>{token || 'not logged in'}</div>
+  <div className="word-break">{token || 'not logged in'}</div>
       </div>
-      <div style={{ color: 'green', marginTop: 6 }}>{msg}</div>
+  <div className="message text-success mt-6" aria-live="polite">{msg}</div>
     </div>
   );
 }

@@ -38,16 +38,16 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto' }}>
+  <div className="container max-w-520">
       <h2>Login</h2>
       <form onSubmit={submit} aria-describedby="login-error" noValidate>
         {error && (
-          <div role="alert" id="login-error" tabIndex={-1} ref={errorRef} style={{ color: 'red' }}>
+          <div role="alert" id="login-error" tabIndex={-1} ref={errorRef} className="message text-danger">
             {error}
           </div>
         )}
 
-        <div style={{ marginTop: 12 }}>
+        <div className="form-row">
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -60,7 +60,7 @@ const LoginPage = () => {
           />
         </div>
 
-        <div style={{ marginTop: 12 }}>
+        <div className="form-row">
           <label htmlFor="password">Password</label>
           <input
             id="password"
@@ -72,18 +72,18 @@ const LoginPage = () => {
           />
         </div>
 
-        <div style={{ marginTop: 12 }}>
+        <div className="form-row">
           <label>
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me
           </label>
         </div>
 
-        <div style={{ marginTop: 16 }}>
-          <button type="submit">Sign in / Register</button>
+        <div className="form-row">
+          <button type="submit" className="btn">Sign in / Register</button>
         </div>
       </form>
 
-      <p style={{ marginTop: 12, color: '#666' }}>
+      <p className="muted mt-12">
         New users: a local account will be created and stored in your browser. Do not use
         production passwords here.
       </p>

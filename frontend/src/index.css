@@ -1,3 +1,5 @@
+@import './styles/theme.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -8,14 +10,93 @@ body {
   font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
+  background-color: var(--bg);
+  color: #0f172a;
 }
 
 :root {
-  --bg: #f5f7fb;
+  --bg: #eef6fb; /* pale blue hero background */
   --surface: #ffffff;
   --primary: #2563eb;
+  --primary-2: #7c3aed; /* secondary purple for gradient */
   --muted: #6b7280;
+}
+
+/* Simple UI utility styles used across pages/components */
+.container {
+  max-width: 70vw;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid #e6e9ee;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.form-row {
+  margin-top: 12px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+input:not([type]) {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.btn {
+  background: linear-gradient(90deg, var(--primary-2), var(--primary));
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+}
+
+.btn.secondary {
+  background: #6b7280;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.message {
+  margin-top: 8px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.32);
+}
+
+.modal-content {
+  background: var(--surface);
+  padding: 16px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 480px;
 }
 
 code {
@@ -24,7 +105,29 @@ code {
 
 #root {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
   min-height: 100vh;
+}
+
+/* Main app layout: header on top, content fills remaining height */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.output {
+  flex: 1 1 auto;
+  background: var(--bg);
+  padding: 24px;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

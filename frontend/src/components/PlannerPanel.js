@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DEFAULT_BACKEND_URL } from '../config';
 
 const TOKEN_KEY = 'auth_token';
@@ -10,11 +10,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    if (token) fetchPlans();
-  }, [token]);
-
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     setMsg('');
     try {
       const res = await fetch(`${backendURL}/plans`, {
@@ -30,7 +26,11 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     } catch (e) {
       setMsg('Network error');
     }
-  };
+  }, [backendURL, token]);
+
+  useEffect(() => {
+    if (token) fetchPlans();
+  }, [token, fetchPlans]);
 
   const createPlan = async () => {
     setMsg('');
@@ -60,26 +60,29 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   }
 
   return (
-    <div className="planner-panel">
+    <div className="planner-panel card">
       <h3>Planner</h3>
-      <div>
+      <div className="form-row">
         <input placeholder="topics (comma separated)" value={topicsText} onChange={(e) => setTopicsText(e.target.value)} />
       </div>
-      <div>
+      <div className="form-row">
         <textarea placeholder="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
-      <div>
-        <button onClick={createPlan}>Create Plan</button>
-        <button onClick={fetchPlans}>Refresh</button>
+      <div className="form-row">
+        <button type="button" className="btn" onClick={createPlan}>Create Plan</button>
+  <button type="button" className="btn secondary ml-8" onClick={fetchPlans}>Refresh</button>
       </div>
-      <div style={{ color: 'green' }}>{msg}</div>
+  <div className="message text-success" aria-live="polite">{msg}</div>
 
-      <div style={{ marginTop: 12 }}>
+  <div className="mt-12">
         <h4>Your Plans</h4>
         {plans.length === 0 && <div>No plans yet</div>}
         <ul>
           {plans.map(p => (
-            <li key={p.id}><strong>{p.id}</strong> — topics: {Array.isArray(p.topics) ? p.topics.join(', ') : ''}<div style={{fontSize:12,color:'#666'}}>{p.notes}</div></li>
+            <li key={p.id}>
+              <strong>{p.id}</strong> — topics: {Array.isArray(p.topics) ? p.topics.join(', ') : ''}
+              <div className="muted small-text">{p.notes}</div>
+            </li>
           ))}
         </ul>
       </div>

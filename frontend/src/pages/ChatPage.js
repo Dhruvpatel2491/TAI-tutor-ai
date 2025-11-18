@@ -8,7 +8,7 @@ import ChatbotInterface from '../components/ChatbotInterface';
 
 const ChatPage = () => {
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div className="max-w-1100">
       <ChatbotInterface />
     </div>
   );

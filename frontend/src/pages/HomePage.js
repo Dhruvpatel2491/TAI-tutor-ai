@@ -1,82 +1,41 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { authService } from '../services/authService';
-import { planService } from '../services/planService';
+import { Link } from 'react-router-dom';
 
 const HomePage = () => {
   const user = authService.getCurrentUser();
-  const [plan, setPlan] = useState(user ? planService.getCurrentPlan(user.email) : null);
-  const [showModal, setShowModal] = useState(false);
-  const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
-
-  const openModal = () => {
-    setName('');
-    setDesc('');
-    setShowModal(true);
-    // focus handled by autoFocus on input
-  };
-
-  const save = () => {
-    if (!name.trim()) return;
-    const saved = planService.createOrReplacePlan(user.email, { name: name.trim(), description: desc });
-    setPlan(saved);
-    setShowModal(false);
-  };
-
-  const exportPlan = () => {
-    const blob = planService.exportPlan(user.email);
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${plan.name || 'plan'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      <h2>Welcome, {user?.email}</h2>
+  <div className="container home-hero">
+      <h2>Next Level AI Tutoring</h2>
+      <p>
+        Welcome{user?.email ? `, ${user.email}` : ''}! Create a custom learning pathway, get hints, and practice with
+        interactive exercises. Use the Planner to create goals and the Chat to get guided help.
+      </p>
 
-      <section style={{ border: '1px solid #ddd', padding: 12, borderRadius: 6 }}>
-        <h3>Current Plan</h3>
-        {plan ? (
-          <div>
-            <strong>{plan.name}</strong>
-            <div style={{ fontSize: 12, color: '#666' }}>{new Date(plan.createdAt).toLocaleString()}</div>
-            <p>{plan.description}</p>
-            <div>
-              <button onClick={openModal}>Recreate new plan</button>
-              <button onClick={exportPlan} style={{ marginLeft: 8 }}>Export plan</button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p>No current plan</p>
-            <button onClick={openModal}>Recreate new plan</button>
-          </div>
-        )}
-      </section>
-
-      {showModal && (
-        <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
-          <div style={{ background: '#fff', padding: 16, borderRadius: 8, width: 400 }} onClick={(e) => e.stopPropagation()}>
-            <h4>Create a new plan</h4>
-            <div>
-              <label htmlFor="plan-name">Name</label>
-              <input id="plan-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <label htmlFor="plan-desc">Description</label>
-              <textarea id="plan-desc" rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} />
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <button onClick={save}>Save</button>
-              <button onClick={() => setShowModal(false)} style={{ marginLeft: 8 }}>Cancel</button>
-            </div>
-          </div>
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3>Get started</h3>
+        <p className="muted">Quick links to help you begin:</p>
+        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+          <Link to="/planner" className="btn">Open Planner</Link>
+          <Link to="/chat" className="btn secondary">Open Chat</Link>
         </div>
-      )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginTop: 18 }}>
+        <div className="card">
+          <h4>Personalized Plans</h4>
+          <p className="muted small-text">Create a study plan tailored to your pace and goals.</p>
+        </div>
+        <div className="card">
+          <h4>Interactive Practice</h4>
+          <p className="muted small-text">Practice problems with step-by-step hints and feedback.</p>
+        </div>
+        <div className="card">
+          <h4>Multimodal Help</h4>
+          <p className="muted small-text">Get explanations with text, code examples, and examples from your course materials.</p>
+        </div>
+      </div>
     </div>
   );
 };
