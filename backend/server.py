@@ -1,11 +1,23 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 import os
 import logging
 import json
 import importlib.util
 from pathlib import Path
+# Load environment variables from project's .env (if present). We prefer a .env
+# file located at the repository root (parent of the backend folder). This uses
+# python-dotenv when available but continues gracefully if the package or file
+# is missing.
+try:
+	from dotenv import load_dotenv
+	env_path = Path(__file__).resolve().parent.parent / '.env'
+	if env_path.exists():
+		load_dotenv(dotenv_path=str(env_path))
+		logging.getLogger('backend.api').info(f'Loaded .env from {env_path}')
+except Exception:
+	logging.getLogger('backend.api').debug('python-dotenv not available or .env not found; skipping load')
 # Lazy import note: avoid importing heavy LLM/index modules at top-level so the
 # dev server can start even if optional dependencies are missing. We'll import
 # `get_or_create_index` inside `get_index` when needed.
@@ -77,13 +89,47 @@ logger = logging.getLogger("backend.api")
 INDEX_DIR 	= "./index_store"
 DATA_DIR 	= "./trial-data"
 # directory where embedding definition lives (model.txt or config.json)
-EMBEDDINGS_DIR 		= "./embeddings"
-OLLAMA_LLM			= "llama3-chatqa:latest"
-OLLAMA_EMBED 		= "bge-m3:latest"
-DEFAULT_TEMPERATURE = 5.0
-DEFAULT_MAX_TOKENS 	= 1024
-DEFAULT_TIMEOUT	= 300  # seconds
+EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")
+OLLAMA_LLM = os.environ.get("OLLAMA_LLM", "llama3:8b")
+OLLAMA_EMBED = os.environ.get("OLLAMA_EMBED", "bge-m3:latest")
+DEFAULT_TEMPERATURE = float(os.environ.get("DEFAULT_TEMPERATURE", "5.0"))
+DEFAULT_MAX_TOKENS = int(os.environ.get("DEFAULT_MAX_TOKENS", "1024"))
+DEFAULT_TIMEOUT = int(os.environ.get("DEFAULT_TIMEOUT", "600"))  # seconds
 DEFAULT_PROMPT_MODE = os.environ.get("DEFAULT_PROMPT_MODE", "hint").strip().lower()  # 'hint' or 'direct'
+
+# Main project directory (allows saving/reading files relative to a configurable root)
+MAIN_PROJECT_DIR = os.environ.get("MAIN_PROJECT_DIR", os.getcwd())
+
+# Plan-generation model and prompt templates (embedded here in server per request)
+PLAN_MODEL = os.environ.get("PLAN_MODEL", "llama3:latest")
+PLAN_TEMPERATURE = float(os.environ.get("PLAN_TEMPERATURE", "0.15"))
+PLAN_MAX_TOKENS = int(os.environ.get("PLAN_MAX_TOKENS", "512"))
+
+# Two general response styles: hint (scaffolded hints, not full solutions) and direct
+HINT_CHAT_PROMPT_TEMPLATE = (
+	"You are an expert tutor. When asked to create a study plan, provide scaffolded, hint-style guidance"
+	" rather than full worked solutions. Be concise, actionable, and focus on learning objectives,"
+	" stepwise progression, and short self-checks.\n\nTopics: {question}\n\n"
+)
+
+HINT_PROMPT_TEMPLATE = (
+	"You are an expert tutor. When asked to create a study plan, provide scaffolded, hint-style guidance"
+	" rather than full worked solutions. Be concise, actionable, and focus on learning objectives,"
+	" stepwise progression, and short self-checks.\n\nTopics: {topics}\nAdditional notes: {notes}\n\n"
+)
+
+DIRECT_PROMPT_TEMPLATE = (
+	"You are an expert tutor. When asked to create a study plan, provide a direct, explicit,"
+	" and actionable plan including objectives, a week-by-week schedule, suggested resources,"
+	" exercises, and estimated time per session.\n\nTopics: {topics}\nAdditional notes: {notes}\n\n"
+)
+
+PLAN_BODY_TEMPLATE = (
+	"Generate a personalized learning plan for the user (user_id: {user_id}).\n"
+	"Include: 1) Learning objectives, 2) A 4-week (or configurable) schedule with goals per week,"
+	" 3) Suggested exercises or practice problems, 4) Time estimates per session, and 5) 3 quick self-check questions.\n\n"
+	"Return the plan as plain text organized with clear headings."
+)
 
 # Lazy-loaded globals
 _index_lock = threading.Lock()
@@ -358,7 +404,7 @@ def query_v2():
 		logger.info(f"Received v2 query; model={requested_model}, rebuild={rebuild}, retrieval={bool(retrieval)}")
 		# Debug: log retrieval kwargs and derived template
 		try:
-			logger.debug(f"Per-request retrieval kwargs: {r_kwargs}")
+			logger.debug(f"Per-request retrget_or_create_indexieval kwargs: {r_kwargs}")
 		except Exception:
 			logger.debug("No per-request retrieval kwargs to log")
 
@@ -372,6 +418,8 @@ def query_v2():
 					return f"MOCK_ECHO_V2: {self._q}"
 			response = _MockResponseV2(question)
 		else:
+			style_prompt = HINT_CHAT_PROMPT_TEMPLATE.format(question=question)
+
 			response = query_engine.query(question)
 		logger.debug(f"Response object: type={type(response)}; str={str(response)[:200]}")
 
@@ -460,7 +508,113 @@ def create_plan():
 	notes = payload.get("notes")
 	if not user_id or not isinstance(topics, (list, tuple)):
 		return jsonify({"error": "invalid payload, require topics list (and authenticated user)"}), 400
-	plan = default_planner.create_plan(user_id=user_id, topics=list(topics), notes=notes)
+
+	# Decide whether to generate the plan text using the backend Ollama LLM.
+	use_mock = bool(payload.get("mock") or payload.get("use_mock") or os.environ.get("MOCK_LLM_ECHO"))
+	plan_text = notes
+	if not use_mock:
+		try:
+			# allow request to override model & generation params
+			gen_model = payload.get("plan_model") or PLAN_MODEL
+			gen_temp = float(payload.get("plan_temperature", PLAN_TEMPERATURE))
+			gen_max = int(payload.get("plan_max_tokens", PLAN_MAX_TOKENS))
+			prompt_mode = (payload.get("prompt_mode") or DEFAULT_PROMPT_MODE).strip().lower()
+
+			# Compose prompt from chosen style
+			topics_str = ", ".join(topics) if isinstance(topics, (list, tuple)) else str(topics)
+			if prompt_mode == "direct":
+				style_prompt = DIRECT_PROMPT_TEMPLATE.format(topics=topics_str, notes=(notes or ""))
+			else:
+				style_prompt = HINT_PROMPT_TEMPLATE.format(topics=topics_str, notes=(notes or ""))
+
+			plan_prompt = style_prompt + PLAN_BODY_TEMPLATE.format(user_id=user_id, topics=topics_str, notes=(notes or ""))
+
+			# Support iterative edits: caller may provide an existing plan id and
+			# edit instructions. If provided, fetch the previous plan and include it
+			# in the prompt so the model can produce an improved version.
+			parent_id = None
+			edit_plan_id = payload.get("edit_plan_id")
+			edit_instructions = payload.get("edit_instructions")
+			if edit_plan_id:
+				parent = default_planner.get_plan(edit_plan_id)
+				if not parent:
+					return jsonify({"error": f"edit_plan_id '{edit_plan_id}' not found"}), 400
+				parent_id = edit_plan_id
+				prev_text = parent.notes or ""
+				# Extend the prompt to give the model the previous plan and explicit
+				# instructions for how to edit it.
+				edit_block = "\n\nPrevious plan:\n" + prev_text + "\n\n"
+				if edit_instructions:
+					edit_block += "Edit instructions: " + str(edit_instructions) + "\n\n"
+				else:
+					edit_block += "Edit instructions: Improve clarity, organization, and suggest additional exercises as appropriate.\n\n"
+				# Ask the model to return a revised plan and to note a short changelog
+				plan_prompt = style_prompt + "Please revise the following plan according to the edit instructions.\n" + edit_block + PLAN_BODY_TEMPLATE.format(user_id=user_id, topics=topics_str, notes=(notes or "")) + "\n\nAlso include a short 'Change log' section describing what you changed."
+
+			# Ensure the index is available so we can reuse the existing query engine plumbing
+			# (this mirrors how /query_v2 constructs a per-request Ollama and query engine).
+			try:
+				index_obj, _ = get_index(force_rebuild=False)
+			except Exception:
+				# If index is not available, try to initialize models so Ollama client can be used alone.
+				try:
+					init_models()
+				except Exception:
+					# fall back to mock behavior if Ollama can't be used
+					logger.exception("Could not prepare models for plan generation; falling back to simple plan text.")
+					index_obj = None
+
+			# Instantiate a per-request Ollama model for generation
+			try:
+				per_request_llm = Ollama(model=gen_model, temperature=gen_temp, max_tokens=gen_max, request_timeout=DEFAULT_TIMEOUT)
+			except Exception as e:
+				logger.exception("Failed to instantiate Ollama for plan generation")
+				per_request_llm = None
+
+			if per_request_llm and index_obj is not None:
+				try:
+					qe = index_obj.as_query_engine(llm=per_request_llm)
+					resp = qe.query(plan_prompt)
+					plan_text = str(resp)
+				except Exception:
+					logger.exception("Plan generation via query engine failed; attempting direct LLM call")
+					try:
+						# Best-effort direct call: some LLM wrappers implement __call__ or generate
+						if hasattr(per_request_llm, "generate"):
+							gen = per_request_llm.generate(plan_prompt)
+							plan_text = str(gen)
+						elif callable(per_request_llm):
+							plan_text = str(per_request_llm(plan_prompt))
+						else:
+							# final fallback: use the prompt itself as the plan body
+							plan_text = plan_prompt
+					except Exception:
+						logger.exception("Direct LLM generation failed; using prompt as plan text")
+						plan_text = plan_prompt
+			elif per_request_llm and index_obj is None:
+				# try direct call without index
+				try:
+					if hasattr(per_request_llm, "generate"):
+						gen = per_request_llm.generate(plan_prompt)
+						plan_text = str(gen)
+					elif callable(per_request_llm):
+						plan_text = str(per_request_llm(plan_prompt))
+					else:
+						plan_text = plan_prompt
+				except Exception:
+					logger.exception("Direct LLM generation without index failed; falling back to prompt text")
+					plan_text = plan_prompt
+			else:
+				# Could not use LLM; leave plan_text as provided notes (or empty)
+				if not plan_text:
+					plan_text = "A short plan: topics: " + topics_str
+		except Exception:
+			logger.exception("Unexpected error during plan generation; falling back to simple plan storage")
+
+	# Persist the plan (notes field will contain either generated plan text or provided notes)
+	# Persist the plan. If this was an edit, record the parent plan id to enable
+	# iterative/versioned plans.
+	plan = default_planner.create_plan(user_id=user_id, topics=list(topics), notes=plan_text, parent_id=parent_id)
 	# Use Pydantic v2 `model_dump()` to avoid deprecation of `.dict()`.
 	try:
 		out = plan.model_dump()
@@ -523,6 +677,143 @@ def get_plan(plan_id: str):
 	except Exception:
 		payload = getattr(p, "__dict__", {})
 	return jsonify(payload), 200
+
+
+@app.route("/saved_plans", methods=["POST"])
+def save_plan():
+	"""
+	Persist a generated plan to the filesystem under ./saved_plans/{user_id}/{plan_name}.json
+	JSON body: {"plan_name": "...", "plan_text": "...", "user_id": "..."}
+	If DISABLE_AUTH is not set, requires Authorization bearer token and will use the token subject.
+	"""
+	payload = request.get_json(force=True, silent=True) or {}
+	plan_name = payload.get("plan_name")
+	plan_text = payload.get("plan_text") or payload.get("notes") or ""
+	if not plan_name:
+		return jsonify({"error": "missing plan_name"}), 400
+
+	# determine user_id via auth unless disabled
+	if not os.environ.get("DISABLE_AUTH"):
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id (server running with DISABLE_AUTH=true)"}), 400
+
+	# sanitize filename
+	try:
+		# import re
+		# safe = re.sub(r'[^A-Za-z0-9._-]', '_', plan_name)[:200]
+		# Save under MAIN_PROJECT_DIR for configurable project root
+		save_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans" / str(user_id)
+		save_dir.mkdir(parents=True, exist_ok=True)
+		file_path = save_dir / f"{str(user_id)}.json"
+		with open(file_path, "w", encoding="utf-8") as f:
+			json.dump({"name": plan_name, "user_id": user_id, "plan_text": plan_text}, f, indent=2)
+		return jsonify({"status": "saved", "path": str(file_path)}), 201
+	except Exception as e:
+		logger.exception("Failed to save plan to disk")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/auth/status", methods=["GET"])
+def auth_status():
+	"""Return whether auth is disabled (for frontend to adapt UX).
+	Response: {"auth_disabled": bool, "default_dev_user": str or null}
+	"""
+	try:
+		disabled = bool(os.environ.get("DISABLE_AUTH"))
+		default_user = os.environ.get("DEFAULT_DEV_USER")
+		return jsonify({"auth_disabled": disabled, "default_dev_user": default_user}), 200
+	except Exception:
+		return jsonify({"auth_disabled": False, "default_dev_user": None}), 200
+
+
+@app.route("/saved_plans", methods=["GET"])
+def list_saved_plans():
+	"""
+	List saved plans for a user. Looks in ./user_data/saved_plan/{user_id}/ and ./saved_plans/{user_id}/
+	Returns JSON list of {name, path, created_at, filename}
+	"""
+	# determine user_id via auth unless disabled
+	if not os.environ.get("DISABLE_AUTH"):
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = request.args.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id query parameter (server running with DISABLE_AUTH=true)"}), 400
+
+	results = []
+	try:
+		candidates = []
+		# Look under configurable MAIN_PROJECT_DIR to support different repo roots
+		base_user_saved_plans = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans"
+		for base in [base_user_saved_plans]:
+			if not (base.exists() and base.is_dir()):
+				continue
+			# Prefer an exact match directory (e.g., .../saved_plans/{user_id}/)
+			exact = base / str(user_id)
+			if exact.exists() and exact.is_dir():
+				for p in exact.rglob('*.json'):
+					candidates.append(p)
+				continue
+			# Fallback: try plural/singular and approximate matches where the
+			# directory name contains the provided user_id (handles emails vs short ids)
+			for child in base.iterdir():
+				try:
+					if child.is_dir() and (str(user_id) in child.name):
+						for p in child.rglob('*.json'):
+							candidates.append(p)
+				except Exception:
+					# skip entries we cannot stat/read
+					continue
+
+		# deduplicate by absolute path
+		seen = set()
+		for p in sorted(candidates, key=lambda x: x.stat().st_mtime, reverse=True):
+			ap = str(p.resolve())
+			if ap in seen:
+				continue
+			seen.add(ap)
+			try:
+				with open(p, 'r', encoding='utf-8') as fh:
+					data = json.load(fh)
+			except Exception:
+				data = {}
+			stat = p.stat()
+			created = None
+			# prefer explicit metadata in file
+			if isinstance(data, dict) and data.get('created_at'):
+				created = data.get('created_at')
+			else:
+				created = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+
+			name = (data.get('name') if isinstance(data, dict) and data.get('name') else p.stem)
+			results.append({
+				'name': name,
+				'path': ap,
+				'created_at': created,
+				'filename': p.name
+			})
+	except Exception as e:
+		logger.exception('Failed to list saved plans')
+		return jsonify({"error": str(e)}), 500
+
+	return jsonify(results), 200
 
 if __name__ == "__main__":
     # Simple dev server (for production use gunicorn/uwsgi)

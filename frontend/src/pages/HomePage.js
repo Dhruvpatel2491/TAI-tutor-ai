@@ -5,6 +5,9 @@ import { Link } from 'react-router-dom';
 const HomePage = () => {
   const user = authService.getCurrentUser();
 
+
+  
+
   return (
   <div className="container home-hero">
       <h2>Next Level AI Tutoring</h2>
@@ -22,10 +25,10 @@ const HomePage = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginTop: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(400px,1fr))', gap: 12, marginTop: 18 }}>
         <div className="card">
           <h4>Personalized Plans</h4>
-          <p className="muted small-text">Create a study plan tailored to your pace and goals.</p>
+          <p className="muted small-text">CuseEffectreate a study plan tailored to your pace and goals.</p>
         </div>
         <div className="card">
           <h4>Interactive Practice</h4>
@@ -36,6 +39,7 @@ const HomePage = () => {
           <p className="muted small-text">Get explanations with text, code examples, and examples from your course materials.</p>
         </div>
       </div>
+      
     </div>
   );
 };

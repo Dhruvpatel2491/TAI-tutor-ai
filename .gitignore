@@ -8,4 +8,8 @@ backend/index_store
 test/__pycache__
 
 frontend/node_modules/*
+
 data/base-data/CSC15_F25/LongAssignment2/__pycache__/functions.cpython-311.pyc
+
+z-script
+.github/prompts

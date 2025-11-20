@@ -7,6 +7,7 @@ class Plan(BaseModel):
     id: str
     user_id: str
     topics: List[str]
+    parent_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     notes: Optional[str] = None
 
@@ -64,10 +65,10 @@ class Planner:
             # non-fatal: persist best-effort
             pass
 
-    def create_plan(self, user_id: str, topics: List[str], notes: Optional[str] = None) -> Plan:
+    def create_plan(self, user_id: str, topics: List[str], notes: Optional[str] = None, parent_id: Optional[str] = None) -> Plan:
         self._counter += 1
         pid = f"plan-{self._counter}"
-        plan = Plan(id=pid, user_id=user_id, topics=topics, notes=notes)
+        plan = Plan(id=pid, user_id=user_id, topics=topics, notes=notes, parent_id=parent_id)
         self._store[pid] = plan
         if self.storage_file:
             self._save()

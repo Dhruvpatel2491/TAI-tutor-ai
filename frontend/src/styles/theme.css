@@ -108,16 +108,16 @@
 .home-hero {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: start;
   justify-content: flex-start;
-  padding-top: 24px;
+  padding-top: 10px;
   gap: 18px;
 }
 
 /* Planner page should be a larger panel centered and occupy most of the width */
 .planner-panel {
-  width: 80vw;
-  max-width: 1200px;
+  width: 70vw;
+  max-width: 70vw;
   min-height: 70vh;
   margin: 0 auto;
   display: flex;
