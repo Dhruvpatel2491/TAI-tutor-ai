@@ -21,16 +21,73 @@ const formatInlineCode = (raw = '') => {
   });
 };
 
-const FormattedMessage = ({ blocks }) => {
+const FormattedMessage = ({ blocks = [], variant = 'default', ariaLabel }) => {
+  // Compute block class by variant for future theming (e.g., hint, info, error)
+  const rootClass = `formatted-message formatted-message--${variant}`;
+
+  const renderFormattedText = (elements, blockKey) => {
+    const nodes = [];
+    let currentList = null;
+
+    const flushList = () => {
+      if (!currentList) return;
+      nodes.push(
+        <ul key={`${blockKey}-list-${nodes.length}`} className="fm-list">
+          {currentList.map((el) => (
+            <li
+              key={el.key}
+              className="list-item"
+              dangerouslySetInnerHTML={{ __html: formatInlineCode(el.content) }}
+            />
+          ))}
+        </ul>
+      );
+      currentList = null;
+    };
+
+    elements.forEach((element) => {
+      if (element.type === 'li') {
+        // start or continue a list
+        if (!currentList) currentList = [];
+        currentList.push(element);
+        return;
+      }
+
+      // if we encounter a non-list element, flush any pending list
+      if (currentList) flushList();
+
+      if (element.type === 'empty') {
+        nodes.push(<div key={element.key} className="empty-line" />);
+        return;
+      }
+
+      if (element.type === 'paragraph') {
+        nodes.push(
+          <p key={element.key} className="paragraph">
+            <span dangerouslySetInnerHTML={{ __html: formatInlineCode(element.content) }} />
+          </p>
+        );
+        return;
+      }
+
+      // Unknown element types are ignored safely
+    });
+
+    // flush leftover list if the last elements were list items
+    if (currentList) flushList();
+
+    return <div className="text-block">{nodes}</div>;
+  };
+
   return (
-    <div className="formatted-message">
+    <div className={rootClass} role="article" aria-label={ariaLabel || 'formatted message'}>
       {blocks.map((block) => {
         if (block.type === 'code') {
           // Render code with a class and escaped HTML so it can be highlighted via CSS or a syntax highlighter.
           // block.lang is optional — if provided we include a language- class (e.g. language-javascript).
           const langClass = block.lang ? `language-${block.lang}` : '';
           return (
-            <pre key={block.id} className="code-block">
+            <pre key={block.id} className="code-block" tabIndex={0} aria-label={block.lang ? `${block.lang} code` : 'code block'}>
               <code
                 className={`code-block__code ${langClass}`}
                 // escaped to preserve special characters; CSS should use white-space: pre / pre-wrap
@@ -41,34 +98,7 @@ const FormattedMessage = ({ blocks }) => {
         }
 
         if (block.type === 'formatted-text') {
-          return (
-            <div key={block.id} className="text-block">
-              {block.content.map((element) => {
-                switch (element.type) {
-                  case 'empty':
-                    return <div key={element.key} className="empty-line" />;
-                  case 'li':
-                    // render list item content and convert inline `code` to <code> elements
-                    return (
-                      <li
-                        key={element.key}
-                        className="list-item"
-                        dangerouslySetInnerHTML={{ __html: formatInlineCode(element.content) }}
-                      />
-                    );
-                  case 'paragraph':
-                    // render paragraph content and convert inline `code` to <code> elements
-                    return (
-                      <p key={element.key} className="paragraph">
-                        <span dangerouslySetInnerHTML={{ __html: formatInlineCode(element.content) }} />
-                      </p>
-                    );
-                  default:
-                    return null;
-                }
-              })}
-            </div>
-          );
+          return <div key={block.id}>{renderFormattedText(block.content, block.id)}</div>;
         }
 
         return null;

@@ -24,3 +24,6 @@ docx2txt
 python-dotenv==1.0.1
 typing-extensions==4.12.2
 
+
+PyJWT==2.8.0
+

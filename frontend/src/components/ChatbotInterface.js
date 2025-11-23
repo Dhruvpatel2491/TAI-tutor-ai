@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/ChatbotInterface.css';
 import FormattedMessage from './FormattedMessage';
 import { formatBotResponse } from '../utils/messageFormatter';
+import { DEFAULT_BACKEND_URL } from '../config';
+import { apiGet, apiPost } from '../services/http';
 
 // Constants
 const INITIAL_MESSAGE = {
@@ -10,9 +12,17 @@ const INITIAL_MESSAGE = {
   sender: 'bot',
   timestamp: new Date()
 };
-const DEFAULT_MODEL = 'llama2';
-const AVAILABLE_MODELS = ['llama3-chatqa', 'llama2', 'gpt-oss:latest', 'llama3:8b','codegemma:7b'];
-const DEFAULT_BACKEND_URL = 'http://147.4.122.14:5000';
+const DEFAULT_MODEL = 'llama3:8b';
+const AVAILABLE_MODELS = [
+  'codegemma:7b',
+  'gemma:7b',
+  'gpt-oss:latest',
+  'llama2:latest',
+  'llama3:8b',
+  'llama3:70b',
+  'llama3-chatqa:latest'
+];
+// Use centralized frontend config for backend URL
 const BACKEND_TIMEOUT = 5000;
 const QUERY_TIMEOUT = 120000;
 const HEALTH_CHECK_INTERVAL = 60000;
@@ -32,6 +42,9 @@ const ChatbotInterface = () => {
   // State - Model Configuration
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [models] = useState(AVAILABLE_MODELS);
+  // State - Prompt Mode Configuration (hint or direct)
+  const PROMPT_MODES = ["hint", "direct"];
+  const [selectedPromptMode, setSelectedPromptMode] = useState(process.env.REACT_APP_DEFAULT_PROMPT_MODE || 'hint');
 
   // State - Backend Connection
   const [backendURL, setBackendURL] = useState(DEFAULT_BACKEND_URL);
@@ -50,11 +63,7 @@ const ChatbotInterface = () => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT);
-
-      const response = await fetch(`${backendURL}/health`, {
-        method: 'GET',
-        signal: controller.signal
-      });
+      const response = await apiGet(`${backendURL}/health`, { signal: controller.signal });
       clearTimeout(timeoutId);
       setBackendStatus(response.ok ? STATUS_CONNECTED : STATUS_DISCONNECTED);
     } catch (error) {
@@ -99,20 +108,11 @@ const ChatbotInterface = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT);
 
-      const response = await fetch(`${backendURL}/query_v2`, {
-        method: 'POST',
-        signal: controller.signal,
-        mode: 'cors',
-        body: JSON.stringify({
-          question: questionText,
-          model: selectedModel,
-          // rebuild: false,
-          // temperature: 5.0,
-          // max_tokens: 1024,
-          stream: false,
-          retrieval: { similarity_top_k: 6, rerank_top_k: 3 }
-        })
-      });
+      const response = await apiPost(`${backendURL}/query_v2`, {
+        question: questionText,
+        model: selectedModel,
+        rebuild: false
+      }, { signal: controller.signal, mode: 'cors' });
       clearTimeout(timeoutId);
 
       if (response.ok) {
@@ -252,23 +252,46 @@ const ChatbotInterface = () => {
         </div>
       )}
 
-      {/* Model Selector */}
+      {/* Model + Prompt Mode Selector (same row, 50/50) */}
       <div className="model-selector">
-        <label htmlFor="model-dropdown">Select Model:</label>
-        <div className="model-control">
-          <select
-            id="model-dropdown"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            disabled={loading}
-            className="model-dropdown"
-          >
-            {models.map(model => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
+        <div className="model-row">
+          <div className="control-half">
+            <label htmlFor="model-dropdown">Select Model:</label>
+            <div className="model-control">
+              <select
+                id="model-dropdown"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={loading}
+                className="model-dropdown"
+              >
+                {models.map(model => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="control-half">
+            <label htmlFor="prompt-mode-dropdown">Prompt Mode:</label>
+            <div className="model-control">
+              <select
+                id="prompt-mode-dropdown"
+                value={selectedPromptMode}
+                onChange={(e) => setSelectedPromptMode(e.target.value)}
+                disabled={loading}
+                className="model-dropdown"
+              >
+                {PROMPT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
