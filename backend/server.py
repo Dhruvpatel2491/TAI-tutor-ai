@@ -26,6 +26,7 @@ except Exception:
 ## Removed prompts.py and all related imports
 from planner import default_planner
 import auth
+from auth import get_user_from_request
 
 # Compatibility wrapper: some versions of llama-index expect a Prompt-like object
 # with a `partial_format(**kwargs)` method. Our prompt helpers return plain strings.
@@ -99,6 +100,20 @@ DEFAULT_PROMPT_MODE = os.environ.get("DEFAULT_PROMPT_MODE", "hint").strip().lowe
 
 # Main project directory (allows saving/reading files relative to a configurable root)
 MAIN_PROJECT_DIR = os.environ.get("MAIN_PROJECT_DIR", os.getcwd())
+
+
+def is_auth_disabled() -> bool:
+	"""Return True only when DISABLE_AUTH is explicitly set to a truthy value.
+
+	Treat common string values like '1', 'true', 'yes', 'on' (case-insensitive) as True.
+	This avoids treating the string 'false' (which is non-empty) as True when using
+	bool(os.environ.get(...)).
+	"""
+	val = os.environ.get("DISABLE_AUTH", "")
+	try:
+		return str(val).strip().lower() in ("1", "true", "yes", "on")
+	except Exception:
+		return False
 
 # Plan-generation model and prompt templates (embedded here in server per request)
 PLAN_MODEL = os.environ.get("PLAN_MODEL", "llama3:latest")
@@ -490,7 +505,7 @@ def auth_login():
 @app.route("/plans", methods=["POST"])  # create
 def create_plan():
 	# Auth required unless disabled via env var
-	if not os.environ.get("DISABLE_AUTH"):
+	if not is_auth_disabled():
 		auth_header = request.headers.get("Authorization")
 		token = auth.extract_bearer_token(auth_header)
 		if not token:
@@ -626,7 +641,7 @@ def create_plan():
 @app.route("/plans", methods=["GET"])  # list by user
 def list_plans():
 	# Auth required unless disabled via env var
-	if not os.environ.get("DISABLE_AUTH"):
+	if not is_auth_disabled():
 		auth_header = request.headers.get("Authorization")
 		token = auth.extract_bearer_token(auth_header)
 		if not token:
@@ -660,7 +675,7 @@ def get_plan(plan_id: str):
 	if not p:
 		return jsonify({"error": "not found"}), 404
 	# Auth required unless disabled via env var
-	if not os.environ.get("DISABLE_AUTH"):
+	if not is_auth_disabled():
 		auth_header = request.headers.get("Authorization")
 		token = auth.extract_bearer_token(auth_header)
 		if not token:
@@ -693,7 +708,7 @@ def save_plan():
 		return jsonify({"error": "missing plan_name"}), 400
 
 	# determine user_id via auth unless disabled
-	if not os.environ.get("DISABLE_AUTH"):
+	if not is_auth_disabled():
 		auth_header = request.headers.get("Authorization")
 		token = auth.extract_bearer_token(auth_header)
 		if not token:
@@ -722,28 +737,15 @@ def save_plan():
 		logger.exception("Failed to save plan to disk")
 		return jsonify({"error": str(e)}), 500
 
-
-@app.route("/auth/status", methods=["GET"])
-def auth_status():
-	"""Return whether auth is disabled (for frontend to adapt UX).
-	Response: {"auth_disabled": bool, "default_dev_user": str or null}
-	"""
-	try:
-		disabled = bool(os.environ.get("DISABLE_AUTH"))
-		default_user = os.environ.get("DEFAULT_DEV_USER")
-		return jsonify({"auth_disabled": disabled, "default_dev_user": default_user}), 200
-	except Exception:
-		return jsonify({"auth_disabled": False, "default_dev_user": None}), 200
-
-
 @app.route("/saved_plans", methods=["GET"])
 def list_saved_plans():
 	"""
 	List saved plans for a user. Looks in ./user_data/saved_plan/{user_id}/ and ./saved_plans/{user_id}/
 	Returns JSON list of {name, path, created_at, filename}
 	"""
+	print("DISABLE_AUTH:", os.environ.get("DISABLE_AUTH"))
 	# determine user_id via auth unless disabled
-	if not os.environ.get("DISABLE_AUTH"):
+	if not is_auth_disabled():
 		auth_header = request.headers.get("Authorization")
 		token = auth.extract_bearer_token(auth_header)
 		if not token:
@@ -752,8 +754,10 @@ def list_saved_plans():
 		if not claims:
 			return jsonify({"error": "invalid or expired token"}), 401
 		user_id = claims.get("sub")
+
 	else:
 		user_id = request.args.get("user_id")
+		print("User ID (DISABLE_AUTH):", user_id)	
 		if not user_id:
 			return jsonify({"error": "missing user_id query parameter (server running with DISABLE_AUTH=true)"}), 400
 
@@ -803,17 +807,70 @@ def list_saved_plans():
 				created = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
 
 			name = (data.get('name') if isinstance(data, dict) and data.get('name') else p.stem)
+			plan_text = data.get('plan_text') if isinstance(data, dict) else ""
 			results.append({
 				'name': name,
 				'path': ap,
 				'created_at': created,
-				'filename': p.name
+				'plan_text': plan_text
 			})
 	except Exception as e:
 		logger.exception('Failed to list saved plans')
 		return jsonify({"error": str(e)}), 500
 
 	return jsonify(results), 200
+
+
+@app.route("/auth/status", methods=["GET"])
+def auth_status():
+	"""Return whether auth is disabled (for frontend to adapt UX).
+	Response: {"auth_disabled": bool, "default_dev_user": str or null}
+	"""
+	try:
+		disabled = is_auth_disabled()
+		default_user = os.environ.get("DEFAULT_DEV_USER")
+		return jsonify({"auth_disabled": disabled, "default_dev_user": default_user}), 200
+	except Exception:
+		return jsonify({"auth_disabled": False, "default_dev_user": None}), 200
+
+@app.route("/auth/user", methods=["GET"])
+def auth_user():
+	"""
+	Return information about the current user.
+	When auth is enabled (DISABLE_AUTH not set), requires Authorization: Bearer <token>
+	and returns the token subject plus claims.
+	When auth is disabled, returns user_id from query param (if provided) or the
+	DEFAULT_DEV_USER / 'dev' fallback so callers can discover the effective user id.
+	"""
+	try:
+		disabled = is_auth_disabled()
+		default_user = os.environ.get("DEFAULT_DEV_USER")
+		# Auth enabled: require and verify bearer token
+		if not disabled:
+			auth_header = request.headers.get("Authorization")
+			token = auth.extract_bearer_token(auth_header)
+			if not token:
+				return jsonify({"error": "missing Authorization Bearer token"}), 401
+			claims = auth.verify_jwt(token)
+			if not claims:
+				return jsonify({"error": "invalid or expired token"}), 401
+			return jsonify({"auth_disabled": False, "user_id": claims.get("sub"), "claims": claims}), 200
+		# Auth disabled: allow query param or default dev user
+		user_id = request.args.get("user_id") or default_user or "dev"
+		return jsonify({"auth_disabled": True, "user_id": user_id, "default_dev_user": default_user}), 200
+	except Exception:
+		logger.exception("Failed to determine auth user")
+		return jsonify({"error": "internal server error"}), 500
+
+import os
+from flask import jsonify, request, current_app
+
+# Temporary debug endpoint — enable only in dev by setting BACKEND_DEBUG=1
+@app.route('/_debug/env')
+def debug_env():
+	# Always return environment variables and their values
+	env = {k: v for k, v in os.environ.items()}
+	return jsonify(env)
 
 if __name__ == "__main__":
     # Simple dev server (for production use gunicorn/uwsgi)

@@ -26,7 +26,8 @@ body {
 .container {
   max-width: 70vw;
   margin: 0 auto;
-  padding: 12px;
+  /* reduced padding to tighten space under header */
+  padding: 8px;
 }
 
 .card {
@@ -37,7 +38,8 @@ body {
 }
 
 .form-row {
-  margin-top: 12px;
+  /* slightly smaller vertical spacing for form rows */
+  margin-top: 8px;
 }
 
 label {
@@ -125,9 +127,10 @@ code {
 .output {
   flex: 1 1 auto;
   background: var(--bg);
-  padding: 24px;
+  /* reduced padding so sections sit closer under the header */
+  padding: 8px;
   overflow: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }

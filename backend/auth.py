@@ -1,6 +1,47 @@
 import os
 import time
 from typing import Optional, Dict
+from flask import Request
+
+# Read config from env; keep existing default ("dev") behavior if env not set.
+DEFAULT_DEV_USER = os.getenv("DEFAULT_DEV_USER", "dev")
+
+# Accept common env names; prefer DISABLE_AUTH (matches server.py). Treat common
+# truthy strings as True. Default to False to avoid disabling auth accidentally.
+AUTH_DISABLED = str(os.getenv("DISABLE_AUTH", os.getenv("AUTH_DISABLED", os.getenv("DISABLED_AUTH", "false")))).lower().strip() in ("1", "true", "yes", "on")
+
+
+def _extract_email_from_headers(req: Request) -> Optional[str]:
+    """
+    Try common headers used by auth proxies to carry the authenticated user's email.
+    """
+    headers = req.headers
+    for h in ("X-User-Email", "X-Forwarded-User", "X-Auth-User", "X-Forwarded-Email"):
+        val = headers.get(h)
+        if val:
+            return val
+    # Try Authorization: Bearer <token>; if token looks like an email, return it.
+    auth = headers.get("Authorization") or headers.get("authorization")
+    if auth and auth.startswith("Bearer "):
+        token = auth.split(" ", 1)[1].strip()
+        if "@" in token and " " not in token:
+            return token
+    return None
+
+
+def get_user_from_request(req: Request) -> Dict:
+    """
+    Return a dict with keys: auth_disabled (bool), default_dev_user (str), user_id (str|None).
+    When auth is enabled, prefer the login email extracted from headers; fall back to None.
+    When auth is disabled, return the default dev user as before.
+    """
+    if AUTH_DISABLED:
+        return {"auth_disabled": True, "default_dev_user": DEFAULT_DEV_USER, "user_id": DEFAULT_DEV_USER}
+
+    # Auth enabled: extract login email from headers (requires auth proxy to set these headers)
+    email = _extract_email_from_headers(req)
+    return {"auth_disabled": False, "default_dev_user": DEFAULT_DEV_USER, "user_id": email}
+
 
 try:
     import jwt

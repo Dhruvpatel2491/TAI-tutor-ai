@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { DEFAULT_BACKEND_URL } from '../config';
-
-const TOKEN_KEY = 'auth_token';
+import { authService } from '../services/authService';
 
 function AuthPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [userId, setUserId] = useState('');
-  const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY) || '');
+  const [token, setToken] = useState(() => {
+    try { return authService.getToken() || ''; } catch (e) { return ''; }
+  });
   const [msg, setMsg] = useState('');
 
-  const saveToken = (t) => {
-    localStorage.setItem(TOKEN_KEY, t);
-    setToken(t);
+  const saveToken = (t, remember = true) => {
+    try { authService.setToken(t, remember); } catch (e) {}
+    setToken(typeof t === 'object' ? (t.token || JSON.stringify(t)) : t);
   };
 
   const register = async () => {
@@ -23,7 +24,7 @@ function AuthPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       });
       const data = await res.json();
       if (res.ok) {
-        saveToken(data.token);
+        saveToken(data.token, true);
         setMsg('Registered and logged in');
       } else {
         setMsg(data.error || 'Registration failed');
@@ -43,7 +44,7 @@ function AuthPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       });
       const data = await res.json();
       if (res.ok) {
-        saveToken(data.token);
+        saveToken(data.token, true);
         setMsg('Logged in');
       } else {
         setMsg(data.error || 'Login failed');
@@ -54,7 +55,7 @@ function AuthPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+    try { authService.clearToken(); } catch (e) {}
     setToken('');
     setMsg('Logged out');
   };

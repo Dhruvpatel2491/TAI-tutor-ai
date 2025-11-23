@@ -4,7 +4,38 @@
 // exposure but don't replace a secure backend with proper authentication.
 
 const USERS_KEY = 'tutor_users_v1';
-const SESSION_KEY = 'tutor_session_v1';
+const TOKEN_KEY = 'tutor_token_v1';
+// NOTE: tokens/sessions are now managed in-memory by this service to avoid
+// storing auth sessions in localStorage/sessionStorage. Components should use
+// authService.getToken()/setToken()/clearToken() to interact with the session.
+
+let _currentSession = null;
+let _userSession = null;
+
+// Initialize session from sessionStorage (prefer) then localStorage
+function _initSessionFromStorage() {
+  try {
+    const sessRaw = sessionStorage.getItem(TOKEN_KEY);
+    const userRaw = sessionStorage.getItem(USERS_KEY);
+    if (sessRaw) {
+      _currentSession = JSON.parse(sessRaw);
+      _userSession=JSON.parse(userRaw);
+      return;
+    }
+  } catch (e) { console.error('Error initializing session from storage:', e); }
+
+  try {
+    const localRaw = localStorage.getItem(TOKEN_KEY);
+    const localUserRaw = localStorage.getItem(USERS_KEY);
+    if (localRaw) {
+      _currentSession = JSON.parse(localRaw);
+      _userSession = JSON.parse(localUserRaw);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+_initSessionFromStorage();
 
 function b64encode(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -73,29 +104,54 @@ function makeSalt() {
 function loadUsers() {
   try {
     const raw = localStorage.getItem(USERS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    _userSession = raw ? JSON.parse(raw) : {};
+    return _userSession;
   } catch (e) {
     return {};
   }
 }
 
 function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  try { localStorage.setItem(USERS_KEY, JSON.stringify(users)); } catch (e) { /* ignore */ }
 }
 
-function saveSession(token, remember) {
-  if (remember) localStorage.setItem(SESSION_KEY, JSON.stringify(token));
-  else sessionStorage.setItem(SESSION_KEY, JSON.stringify(token));
+function saveSession(token, remember = true) {
+  // persist to storage based on remember flag and also keep in-memory
+  _currentSession = token || null;
+  try {
+    if (!token) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+      return;
+    }
+    const raw = JSON.stringify(token);
+    if (remember) {
+      // persistent across browser restarts
+      localStorage.setItem(TOKEN_KEY, raw);
+      // ensure sessionStorage doesn't hold a stale copy
+      try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    } else {
+      // session-only
+      sessionStorage.setItem(TOKEN_KEY, raw);
+      try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    }
+  } catch (e) {
+    // storage might be unavailable (privacy mode) — fall back to in-memory
+  }
 }
 
 function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
+  _currentSession = null;
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+  try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+
+  _userSession = null;
+  try { sessionStorage.removeItem(USERS_KEY); } catch (e) {}
+  try { localStorage.removeItem(USERS_KEY); } catch (e) {}
 }
 
 function getSession() {
-  const s = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
-  return s ? JSON.parse(s) : null;
+  return _currentSession;
 }
 
 function uuidv4() {
@@ -131,24 +187,101 @@ export const authService = {
     }
 
     const token = { token: uuidv4(), email: lower, issuedAt: now };
-    saveSession(token, remember);
+  // persist token according to caller's preference
+  saveSession(token, remember);
+    // notify listeners about session change
+    try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token: token } })); } catch (e) { /* ignore */ }
     return token;
   },
 
   logout() {
-    clearSession();
+    // ensure listeners are notified
+    authService.clearToken();
   },
 
   getCurrentUser() {
     const session = getSession();
     if (!session) return null;
     const users = loadUsers();
-    const u = users[session.email];
+    // console.log('authService.getCurrentUser: users[session.email]', Object.values(users)[0]);
+    const u = Object.values(users)[0];
     return u ? { email: u.email, createdAt: u.createdAt } : null;
   },
 
   getSessionToken() {
     return getSession();
+  },
+
+  // Compatibility helpers so components that used `auth` can be switched to
+  // `authService` without changing call sites everywhere.
+  // getToken: return a simple token string when possible (for legacy checks)
+  getToken() {
+    const s = getSession();
+    if (!s) return null;
+    if (typeof s === 'string') return s;
+    if (s && s.token) return s.token;
+    return s;
+  },
+
+  // setToken: accept either a token string or a token object and persist it
+  setToken(token, remember = true) {
+    try {
+      if (!token) {
+        clearSession();
+        try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token: null } })); } catch (e) {}
+        return;
+      }
+      // if token is a string, wrap it
+      const toSave = (typeof token === 'string') ? { token } : token;
+      saveSession(toSave, remember);
+      try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token: toSave } })); } catch (e) {}
+    } catch (e) {
+      // ignore
+    }
+  },
+
+  clearToken() {
+    clearSession();
+    try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token: null } })); } catch (e) {}
+  },
+
+  // decodeToken: attempt to decode a JWT-like token, but also accept the
+  // session object produced by this demo (returns that object if present).
+  decodeToken(token) {
+    try {
+      if (!token) return null;
+      // if a session object was passed, try to return it
+      if (typeof token === 'object') return token;
+      // otherwise try JWT decode
+      const parts = token.split('.');
+      if (parts.length < 2) return null;
+      const payload = parts[1];
+      const padded = payload + '='.repeat((-payload.length) % 4);
+      const json = JSON.parse(atob(padded.replace(/-/g, '+').replace(/_/g, '/')));
+      return json;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  // fetchCurrentUser: for the local/demo authService return the local user
+  async fetchCurrentUser() {
+    try {
+      // For privacy and to remove email-as-user-id flows, do not expose
+      // user_id here. Return minimal profile information if available.
+      const u = authService.getCurrentUser();
+      console.log('authService.fetchCurrentUser: u', u);
+      if (!u) return null;
+      return u || {};
+    } catch (e) {
+      return null;
+    }
+  },
+
+  onAuthChange(cb) {
+    const handler = (e) => cb(e.detail && e.detail.token ? e.detail.token : null);
+    window.addEventListener('auth_token_changed', handler);
+    return () => window.removeEventListener('auth_token_changed', handler);
   },
 
   // Expose derive for tests

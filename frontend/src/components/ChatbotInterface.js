@@ -3,6 +3,7 @@ import '../styles/ChatbotInterface.css';
 import FormattedMessage from './FormattedMessage';
 import { formatBotResponse } from '../utils/messageFormatter';
 import { DEFAULT_BACKEND_URL } from '../config';
+import { apiGet, apiPost } from '../services/http';
 
 // Constants
 const INITIAL_MESSAGE = {
@@ -62,11 +63,7 @@ const ChatbotInterface = () => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT);
-
-      const response = await fetch(`${backendURL}/health`, {
-        method: 'GET',
-        signal: controller.signal
-      });
+      const response = await apiGet(`${backendURL}/health`, { signal: controller.signal });
       clearTimeout(timeoutId);
       setBackendStatus(response.ok ? STATUS_CONNECTED : STATUS_DISCONNECTED);
     } catch (error) {
@@ -111,20 +108,11 @@ const ChatbotInterface = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT);
 
-      const response = await fetch(`${backendURL}/query_v2`, {
-        method: 'POST',
-        signal: controller.signal,
-        mode: 'cors',
-        body: JSON.stringify({
-          question: questionText,
-          model: selectedModel,
-          rebuild: false,
-          // temperature: 5.0,
-          // max_tokens: 1024,
-          // stream: false,
-          // retrieval: { similarity_top_k: 6, rerank_top_k: 3 }
-        })
-      });
+      const response = await apiPost(`${backendURL}/query_v2`, {
+        question: questionText,
+        model: selectedModel,
+        rebuild: false
+      }, { signal: controller.signal, mode: 'cors' });
       clearTimeout(timeoutId);
 
       if (response.ok) {

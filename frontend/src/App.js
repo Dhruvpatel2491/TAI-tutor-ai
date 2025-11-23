@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
@@ -10,8 +10,36 @@ import { authService } from './services/authService';
 
 function Header() {
   const navigate = useNavigate();
-  const user = authService.getCurrentUser();
   const location = useLocation();
+  const [effectiveEmail, setEffectiveEmail] = useState(null);
+  const [hasToken, setHasToken] = useState(Boolean(authService.getToken()));
+
+  useEffect(() => {
+    
+    let mounted = true;
+    const server = authService.getCurrentUser();
+      console.log('Fetched current user from server:', server.email);
+
+      if (!mounted) return;
+      if (server && server.email) {
+        setEffectiveEmail(server.email);
+      } else {
+        const localUser = authService.getCurrentUser();
+        if (localUser && localUser.email) setEffectiveEmail(localUser.email);
+        else {
+          const dec = authService.decodeToken(authService.getToken());
+          setEffectiveEmail(dec ? (dec.sub || dec.email || dec.email) : null);
+        }
+      }
+
+
+    const unsub = authService.onAuthChange((t) => {
+      setHasToken(Boolean(t));
+      // when token is removed, clear the effective email so header hides
+      if (!t) setEffectiveEmail(null);
+    });
+    return () => { unsub(); mounted = false };
+  }, []);
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -19,10 +47,16 @@ function Header() {
   };
 
   const logout = () => {
-    authService.logout();
+    // clear both local demo service and token
+    authService.clearToken();
+    try { authService.logout(); } catch (e) {}
+    // also clear effectiveEmail state so header hides immediately
+    setEffectiveEmail(null);
     navigate('/login');
   };
-  if (!user) return null;
+  // console.log('Using local user for effectiveEmail:', effectiveEmail);
+
+  if (!effectiveEmail) return null;
 
   return (
     <header className="app-header header-flex">
@@ -41,9 +75,12 @@ function Header() {
           </ul>
         </nav>
 
-        <div>
-          <span className="welcome-mr">Welcome, {user.email}</span>
-          <button type="button" className="btn" onClick={logout}>Logout</button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span className="welcome-mr">Welcome, {effectiveEmail}</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 6, background: hasToken ? 'green' : 'gray', display: 'inline-block' }} title={hasToken ? 'Token present' : 'No token'} />
+            <button type="button" className="btn" onClick={logout}>Logout</button>
+          </div>
         </div>
       </div>
     </header>
