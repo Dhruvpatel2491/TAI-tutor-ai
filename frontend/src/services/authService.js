@@ -270,7 +270,7 @@ export const authService = {
       // For privacy and to remove email-as-user-id flows, do not expose
       // user_id here. Return minimal profile information if available.
       const u = authService.getCurrentUser();
-      console.log('authService.fetchCurrentUser: u', u);
+      //console.log('authService.fetchCurrentUser: u', u);
       if (!u) return null;
       return u || {};
     } catch (e) {

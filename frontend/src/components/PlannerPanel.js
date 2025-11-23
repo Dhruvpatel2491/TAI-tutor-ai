@@ -21,6 +21,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
+    //console.log('BACKEND_URL=', process.env.REACT_APP_BACKEND_URL);
     // Load initial token from central authService before performing any
     // API calls so the first requests include the Authorization header.
     // Do NOT clear local/session storage here so a remembered session
@@ -59,14 +60,14 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     setMsg('');
     try {
       const headers = {};
-      console.log('Fetching plans with token:', token);
+      //console.log('Fetching plans with token:', token);
       if (token) headers['Authorization'] = `Bearer ${token}` 
       // Always call saved_plans without attaching ad-hoc user_id parameters.
       const url = `${backendURL}/saved_plans`;
       const res = await apiGet(url);
       if (res.ok) {
         const data = await res.json();
-        console.log('Fetched plans:', data);
+        //console.log('Fetched plans:', data);
         setPlans(data || []);
       } else if (res.status === 401) {
         const body = await res.json().catch(() => ({}));
@@ -118,7 +119,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       if (res.ok) {
   const planText = data.notes || data.plan_text || data.answer || '';
   // load into generated plan and switch to create/edit view for review
-  console.log('Generated plan text:', planText);
+  //console.log('Generated plan text:', planText);
   setGeneratedPlan(planText || '');
   setSelectedPlan({ name: data.name || '', owner: data.owner || data.owner_id || data.user_id || 'unknown', created_at: data.created_at || new Date().toISOString(), text: planText });
         setMsg('Plan generated');
@@ -127,7 +128,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         fetchPlans();
       } else if (res.status === 401) {
         if (data && (data.error && data.error.toLowerCase().includes('token'))) {
-          console.log('Invalid token detected when generating plan :: createPlan');
+          //console.log('Invalid token detected when generating plan :: createPlan');
           handleInvalidToken();
         } else {
           setMsg(data.error || 'Unauthorized');
@@ -166,7 +167,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         window.location.reload();
       } else if (res.status === 401) {
         if (data && (data.error && data.error.toLowerCase().includes('token'))) {
-          console.log('Invalid token detected when saving plan :: savePlan');
+          //console.log('Invalid token detected when saving plan :: savePlan');
           handleInvalidToken();
         } else {
           setMsg(data.error || 'Unauthorized');

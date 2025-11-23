@@ -20,7 +20,7 @@ const LoginPage = () => {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    console.log('[LoginPage] submit triggered for', email, 'remember=', remember);
+    //console.log('[LoginPage] submit triggered for', email, 'remember=', remember);
     if (!validateEmail(email)) {
       setError('Please enter a valid email.');
       errorRef.current?.focus();
@@ -34,22 +34,22 @@ const LoginPage = () => {
 
     try {
       // Call backend register/login endpoint and store JWT
-      console.log("Submitting login for email:", process.env.REACT_APP_BACKEND_URL || '' );
+      //console.log("Submitting login for email:", process.env.REACT_APP_BACKEND_URL || '' );
       const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
       const res = await apiPost(`${base}/auth/register`, { user_id: email });
-      console.log("[LoginPage] Response object from register attempt:", res);
+      //console.log("[LoginPage] Response object from register attempt:", res);
       // If register returns non-OK, try login
       let data = await res.json().catch(() => ({}));
       // console.log('[LoginPage] Parsed body from register attempt:', data);
       if (!res.ok) {
         const res2 = await apiPost(`${base}/auth/login`, { user_id: email });
         data = await res2.json().catch(() => ({}));
-        console.log('[LoginPage] Response from login attempt:', res2);
-        console.log('[LoginPage] Parsed body from login attempt:', data);
+        //console.log('[LoginPage] Response from login attempt:', res2);
+        //console.log('[LoginPage] Parsed body from login attempt:', data);
         if (!res2.ok) throw new Error(data.error || 'Login failed');
       }
     const token = data.token;
-    console.log('[LoginPage] Received token from server:', token);
+    //console.log('[LoginPage] Received token from server:', token);
     if (!token) throw new Error('No token returned from server');
 
     // persist token (use remember checkbox) and notify other components
@@ -78,15 +78,15 @@ const LoginPage = () => {
       if (!users[lower]) {
         users[lower] = { email: lower, createdAt: new Date().toISOString() };
         authService._internal.saveUsers(users);
-        console.log('[LoginPage] Saved local user profile for', lower);
+        //console.log('[LoginPage] Saved local user profile for', lower);
       } else {
         // update last-seen
         users[lower].lastSeen = new Date().toISOString();
         authService._internal.saveUsers(users);
-        console.log('[LoginPage] Updated local user lastSeen for', lower);
+        //console.log('[LoginPage] Updated local user lastSeen for', lower);
       }
     } catch (e) {
-      console.log('[LoginPage] Failed to save local user profile:', e);
+      //console.log('[LoginPage] Failed to save local user profile:', e);
     }
 
     // Navigate after token is persisted and local user saved

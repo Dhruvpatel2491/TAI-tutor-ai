@@ -18,8 +18,8 @@ function Header() {
     
     let mounted = true;
     const server = authService.getCurrentUser();
-      console.log('Fetched current user from server:', server.email);
-
+      // console.log('Fetched current user from server:', server.email);
+    // console.log('BACKEND_URL=', process.env.REACT_APP_BACKEND_URL);
       if (!mounted) return;
       if (server && server.email) {
         setEffectiveEmail(server.email);
