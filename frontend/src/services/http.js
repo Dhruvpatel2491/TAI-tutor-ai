@@ -31,10 +31,11 @@ export async function apiRequest(url, { method = 'GET', body = undefined, header
   return fetch(url, init);
 }
 
-export const apiGet = (url, opts = {}) => apiRequest(url, { ...opts, method: 'GET' });
-export const apiPost = (url, body, opts = {}) => {
-    // console.log("Making POST request to:", url, "with body:", body, "and options:", opts);
-    return apiRequest(url, { ...opts, method: 'POST', body });
+export const apiGet = (url) => apiRequest(url, { method: 'GET' });
+export const apiPost = (url, body) => {
+
+  console.log("Making POST request to:", url, "with body:", body);
+  return apiRequest(url, { method: 'POST', body });
 };
 
 const http = { apiRequest, apiGet, apiPost };

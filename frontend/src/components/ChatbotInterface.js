@@ -23,9 +23,9 @@ const AVAILABLE_MODELS = [
   'llama3-chatqa:latest'
 ];
 // Use centralized frontend config for backend URL
-const BACKEND_TIMEOUT = 5000;
-const QUERY_TIMEOUT = 120000;
-const HEALTH_CHECK_INTERVAL = 60000;
+const BACKEND_TIMEOUT = 60 * 1000; // 60 seconds
+const QUERY_TIMEOUT = 120 * 1000; // 120 seconds
+const HEALTH_CHECK_INTERVAL = 120 * 1000; // 120 seconds
 
 // Normalized status constants
 const STATUS_CONNECTED = 'connected';
@@ -109,10 +109,12 @@ const ChatbotInterface = () => {
       const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT);
 
       const response = await apiPost(`${backendURL}/query_v2`, {
+        signal: controller.signal,
+        mode: 'cors',
         question: questionText,
         model: selectedModel,
         rebuild: false
-      }, { signal: controller.signal, mode: 'cors' });
+      });
       clearTimeout(timeoutId);
 
       if (response.ok) {

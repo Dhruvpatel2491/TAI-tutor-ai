@@ -350,7 +350,7 @@ def query():
 		return jsonify({"error": str(e)}), 500
 
 # New endpoint: version 2 allows specifying "model" (LLM) in the request body.
-@app.route("/query_v2", methods=["POST","OPTIONS"])
+@app.route("/query_v2", methods=["POST"])
 def query_v2():
 	"""
 	POST /query_v2
