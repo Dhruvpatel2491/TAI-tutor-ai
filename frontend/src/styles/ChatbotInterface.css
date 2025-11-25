@@ -27,7 +27,7 @@
 .chatbot-top {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 20px 24px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -42,13 +42,12 @@
 }
 
 .chatbot-header-left h1 {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 0 0 4px 0;
 }
 
 .chatbot-header-left p {
-  font-size: 14px;
+  font-size: 12px;
   opacity: 0.9;
   font-weight: 300;
   margin: 0;
