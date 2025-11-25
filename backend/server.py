@@ -479,25 +479,36 @@ def rebuild():
 @app.route("/auth/register", methods=["POST"])
 def auth_register():
 	payload = request.get_json(force=True, silent=True) or {}
-	user_id = payload.get("user_id")
-	if not user_id:
-		return jsonify({"error": "missing user_id"}), 400
-	# create or update simple in-memory user record
-	USERS[user_id] = {"user_id": user_id, "created_at": str(datetime.utcnow())}
-	token = auth.create_jwt_for_user(user_id)
-	return jsonify({"token": token}), 200
+	email = payload.get("email") or payload.get("user_id")
+	password = payload.get("password")
+	if not email or not password:
+		return jsonify({"error": "missing email or password"}), 400
+	try:
+		# register persists to disk via backend/auth.register_user
+		auth.register_user(email, password)
+	except ValueError as e:
+		# user exists or invalid input
+		return jsonify({"error": str(e)}), 409
+	except Exception as e:
+		logger.exception("Failed to register user")
+		return jsonify({"error": str(e)}), 500
+
+	token = auth.create_jwt_for_user(email)
+	return jsonify({"token": token}), 201
 
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
 	payload = request.get_json(force=True, silent=True) or {}
-	user_id = payload.get("user_id")
-	if not user_id:
-		return jsonify({"error": "missing user_id"}), 400
-	# in this simple dev flow, require the user to have registered
-	if user_id not in USERS:
-		return jsonify({"error": "unknown user"}), 401
-	token = auth.create_jwt_for_user(user_id)
+	email = payload.get("email") or payload.get("user_id")
+	password = payload.get("password")
+	if not email or not password:
+		return jsonify({"error": "missing email or password"}), 400
+	# verify password against on-disk store
+	ok = auth.verify_user(email, password)
+	if not ok:
+		return jsonify({"error": "invalid credentials"}), 401
+	token = auth.create_jwt_for_user(email)
 	return jsonify({"token": token}), 200
 
 
@@ -729,9 +740,12 @@ def save_plan():
 		# Save under MAIN_PROJECT_DIR for configurable project root
 		save_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans" / str(user_id)
 		save_dir.mkdir(parents=True, exist_ok=True)
-		file_path = save_dir / f"{str(user_id)}.json"
+		file_path = save_dir / f"{str(plan_name)}.json"
+		# include explicit created_at timestamp in UTC so listing endpoint can surface it
+		created_at = datetime.now(timezone.utc).isoformat()
+		payload = {"name": plan_name, "user_id": user_id, "plan_text": plan_text, "created_at": created_at}
 		with open(file_path, "w", encoding="utf-8") as f:
-			json.dump({"name": plan_name, "user_id": user_id, "plan_text": plan_text}, f, indent=2)
+			json.dump(payload, f, indent=2)
 		return jsonify({"status": "saved", "path": str(file_path)}), 201
 	except Exception as e:
 		logger.exception("Failed to save plan to disk")

@@ -107,3 +107,14 @@ Notes about tests:
 ---
 
 If you'd like, I can also: add a `backend/README.md` with troubleshooting steps, or create an explicit `.env` tailored for your environment. Which would you prefer next?
+
+## Authentication (developer/demo)
+
+The backend exposes simple register/login endpoints intended for local development and demos. These endpoints persist user records under `user_data/login_register/` and return a signed JWT used by other API endpoints (e.g., `/plans`, `/saved_plans`).
+
+- POST /auth/register — JSON body: `{ "email": "user@example.com", "password": "..." }`. Returns `201` and `{"token": "<jwt>"}` on success. Returns `409` if the user already exists.
+- POST /auth/login — JSON body: `{ "email": "user@example.com", "password": "..." }`. Returns `200` and `{"token": "<jwt>"}` on success, or `401` for invalid credentials.
+
+Notes:
+- This demo auth is file-backed and should NOT be used in production. Passwords are stored with PBKDF2-SHA256 and a random salt, but you should use a proper auth provider and secure storage for real deployments.
+- The frontend will call these endpoints when `REACT_APP_BACKEND_URL` is set; otherwise it falls back to the local demo auth (stored in browser localStorage).

@@ -166,31 +166,84 @@ function uuidv4() {
 }
 
 export const authService = {
-  async registerOrLogin(email, password, remember = false) {
+  async register(email, password, remember = false) {
+    // Try backend register first (if backend URL configured). If backend not
+    // available, fall back to local demo storage behavior.
+    const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
+    const payload = { email: email.trim().toLowerCase(), password };
+    if (base) {
+      try {
+        const res = await fetch(`${base}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const token = data.token;
+          saveSession(token, remember);
+          try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token } })); } catch (e) {}
+          return token;
+        }
+        throw new Error(data.error || 'Register failed');
+      } catch (err) {
+        // fallthrough to local fallback below
+        console.warn('Backend register failed, falling back to local demo store:', err);
+      }
+    }
+
+    // Local fallback registration (existing behavior)
     const users = loadUsers();
     const now = new Date().toISOString();
     const lower = email.trim().toLowerCase();
-
     if (!users[lower]) {
-      // register
       const salt = makeSalt();
       const passwordHash = await derivePasswordHash(password, salt);
       users[lower] = { email: lower, salt, passwordHash, createdAt: now };
       saveUsers(users);
+    } else {
+      throw new Error('User already exists (local)');
     }
-
-    // verify
-    const user = users[lower];
-    const derived = await derivePasswordHash(password, user.salt);
-    if (derived !== user.passwordHash) {
-      throw new Error('Invalid credentials');
-    }
-
     const token = { token: uuidv4(), email: lower, issuedAt: now };
-  // persist token according to caller's preference
-  saveSession(token, remember);
-    // notify listeners about session change
-    try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token: token } })); } catch (e) { /* ignore */ }
+    saveSession(token, remember);
+    try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token } })); } catch (e) {}
+    return token;
+  },
+
+  async login(email, password, remember = false) {
+    const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
+    const payload = { email: email.trim().toLowerCase(), password };
+    if (base) {
+      try {
+        const res = await fetch(`${base}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const token = data.token;
+          saveSession(token, remember);
+          try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token } })); } catch (e) {}
+          return token;
+        }
+        throw new Error(data.error || 'Login failed');
+      } catch (err) {
+        console.warn('Backend login failed, falling back to local demo store:', err);
+      }
+    }
+
+    // Local fallback login (existing behavior)
+    const users = loadUsers();
+    const lower = email.trim().toLowerCase();
+    const user = users[lower];
+    if (!user) throw new Error('Unknown user');
+    const derived = await derivePasswordHash(password, user.salt);
+    if (derived !== user.passwordHash) throw new Error('Invalid credentials');
+    const now = new Date().toISOString();
+    const token = { token: uuidv4(), email: lower, issuedAt: now };
+    saveSession(token, remember);
+    try { window.dispatchEvent(new CustomEvent('auth_token_changed', { detail: { token } })); } catch (e) {}
     return token;
   },
 

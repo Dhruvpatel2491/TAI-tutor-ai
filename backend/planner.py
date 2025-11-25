@@ -58,6 +58,7 @@ class Planner:
                     # fallback to instance __dict__ to avoid direct `.dict()` usage
                     plans_data[pid] = getattr(p, "__dict__", {})
             data = {"counter": self._counter, "plans": plans_data}
+            print("Plan Data:", plans_data)
             p = Path(self.storage_file)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(json.dumps(data, indent=2), encoding="utf-8")

@@ -81,3 +81,87 @@ def extract_bearer_token(authorization_header: Optional[str]) -> Optional[str]:
     if len(parts) == 2 and parts[0].lower() == "bearer":
         return parts[1]
     return None
+
+
+# --- simple file-backed user store for dev register/login ---
+import base64
+import hashlib
+from pathlib import Path
+import json
+import datetime
+
+
+_ROOT_USER_DIR = Path(__file__).resolve().parent.parent / "user_data" / "login_register"
+
+
+def _ensure_user_dir():
+    try:
+        _ROOT_USER_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+
+
+def _safe_filename_for_email(email: str) -> str:
+    # keep deterministic, reversible-ish mapping but avoid filesystem chars
+    return email.replace("@", "__at__").replace(".", "__dot__")
+
+
+def _user_file_path(email: str) -> Path:
+    _ensure_user_dir()
+    fn = _safe_filename_for_email(email.strip().lower()) + ".json"
+    return _ROOT_USER_DIR / fn
+
+
+def register_user(email: str, password: str) -> dict:
+    """Register a user by saving a salted PBKDF2-SHA256 password hash to disk.
+
+    Returns a dict with stored user metadata. Raises ValueError on invalid input
+    or if user already exists.
+    """
+    if not email or not password:
+        raise ValueError("email and password required")
+    email = email.strip().lower()
+    p = _user_file_path(email)
+    if p.exists():
+        raise ValueError("user already exists")
+
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
+    payload = {
+        "email": email,
+        "salt": base64.b64encode(salt).decode("utf-8"),
+        "password_hash": base64.b64encode(dk).decode("utf-8"),
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+    with open(p, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2)
+    return payload
+
+
+def verify_user(email: str, password: str) -> bool:
+    """Verify a user's password. Returns True on success, False otherwise."""
+    if not email or not password:
+        return False
+    email = email.strip().lower()
+    p = _user_file_path(email)
+    if not p.exists():
+        return False
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        salt_b64 = data.get("salt")
+        expected_b64 = data.get("password_hash")
+        if not salt_b64 or not expected_b64:
+            return False
+        salt = base64.b64decode(salt_b64)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
+        got_b64 = base64.b64encode(dk).decode("utf-8")
+        return got_b64 == expected_b64
+    except Exception:
+        return False
+
+
+def user_exists(email: str) -> bool:
+    email = (email or "").strip().lower()
+    return _user_file_path(email).exists()
+
