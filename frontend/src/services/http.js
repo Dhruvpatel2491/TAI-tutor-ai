@@ -34,7 +34,6 @@ export async function apiRequest(url, { method = 'GET', body = undefined, header
 export const apiGet = (url) => apiRequest(url, { method: 'GET' });
 export const apiPost = (url, body) => {
 
-  console.log("Making POST request to:", url, "with body:", body);
   return apiRequest(url, { method: 'POST', body });
 };
 

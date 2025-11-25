@@ -37,8 +37,8 @@ def _inject_stubs():
     mod_settings.Settings = Settings
     sys.modules["llama_index.core.settings"] = mod_settings
 
-    # minimal stub for llm_methods.get_or_create_index
-    mod_llm_methods = types.ModuleType("llm_methods")
+    # minimal stub for vector_store_gen.get_or_create_index
+    mod_vector_store_gen = types.ModuleType("vector_store_gen")
 
     def get_or_create_index(index_dir=None, data_dir=None, force_rebuild=False, indexing=None):
         class IndexObj:
@@ -51,8 +51,8 @@ def _inject_stubs():
 
         return IndexObj(), IndexObj().as_query_engine()
 
-    mod_llm_methods.get_or_create_index = get_or_create_index
-    sys.modules["llm_methods"] = mod_llm_methods
+    mod_vector_store_gen.get_or_create_index = get_or_create_index
+    sys.modules["vector_store_gen"] = mod_vector_store_gen
 
     # stub flask_cors.CORS
     mod_cors = types.ModuleType("flask_cors")

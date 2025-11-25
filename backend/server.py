@@ -150,7 +150,7 @@ PLAN_BODY_TEMPLATE = (
 _index_lock = threading.Lock()
 _index_obj = None
 _query_engine = None
-# module-level reference to the llm_methods.get_or_create_index function (populated lazily)
+# module-level reference to the vector_store_gen.get_or_create_index function (populated lazily)
 get_or_create_index = None
 
 # Simple in-memory user registry for dev-only register/login endpoints
@@ -209,11 +209,11 @@ def get_index(force_rebuild: bool = False, build_kwargs: dict | None = None):
 			logger.info(f"Loading/creating index (force_rebuild={force_rebuild}) build_kwargs={build_kwargs}")
 			# Lazy import of the index builder which depends on llama-index/ollama.
 			# Allow tests to monkeypatch `server.get_or_create_index` by checking
-			# the module-level name first; only import from llm_methods if it's
+			# the module-level name first; only import from vector_store_gen if it's
 			# not already provided.
 			if get_or_create_index is None:
 				try:
-					from llm_methods import get_or_create_index as _goci
+					from vector_store_gen import get_or_create_index as _goci
 					# bind the imported function to the module-level name
 					get_or_create_index = _goci
 				except Exception as e:
@@ -822,8 +822,10 @@ def list_saved_plans():
 
 			name = (data.get('name') if isinstance(data, dict) and data.get('name') else p.stem)
 			plan_text = data.get('plan_text') if isinstance(data, dict) else ""
+			owner_id = data.get('user_id') if isinstance(data, dict) else ""
 			results.append({
 				'name': name,
+				'owner': owner_id,
 				'path': ap,
 				'created_at': created,
 				'plan_text': plan_text

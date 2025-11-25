@@ -15,9 +15,9 @@ const HomePage = () => {
     (async () => {
       try {
         const profile = await authService.fetchCurrentUser();
-        if (mounted) console.log('HomePage fetched async profile:', profile);
+        if (mounted) console.info('HomePage fetched async profile:', profile);
       } catch (e) {
-        if (mounted) console.log('HomePage: error fetching current user profile', e);
+        if (mounted) console.info('HomePage: error fetching current user profile', e);
       }
     })();
     return () => { mounted = false; };
