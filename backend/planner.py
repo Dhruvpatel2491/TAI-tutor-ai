@@ -111,17 +111,26 @@ class Planner:
 def _default_plan_prompt(requirement: str, user_id: str, original_plan: Optional[str] = None, edit_instructions: Optional[str] = None) -> str:
     """Construct a single, consistent plan prompt for the generative model."""
     base = (
-        "You are an expert tutoring assistant focused on creating short, actionable study plans tailored to the user's stated need.\n"
-        "Produce a well-structured plan that a learner can follow immediately. Include the following sections with clear headings:\n"
+        "You are an expert tutoring assistant whose job is to IMPROVE and EXPAND a study plan based on the user's stated requirement.\n"
+        "Produce a well-structured, actionable plan in plain text using clear headings. Be explicit and concrete: use the requirement to fill blanks, choose realistic times, "
+        "and name one practical example exercise tied to the topic.\n\n"
+        "Required sections (use these exact headings):\n"
         "- Title (1 line)\n"
-        "- Learning Objectives (3-5 concise objectives)\n"
-        "- Suggested Schedule (total duration and a minute-by-minute or block schedule)\n"
-        "- Exercises (3 concrete practice activities with expected time and deliverable)\n"
-        "- Quick Self-Check Questions (3 questions, with one 'stretch' question)\n"
-        "- Recommended Resources (2-4 short links or resource descriptions)\n"
-        "- Tips for Study (2-4 tactical tips)\n\n"
-        "When you must reference a placeholder field, replace it with a sensible concrete value derived from the requirement (do not emit '[insert ...]').\n"
-        "Be explicit and concrete: use the requirement text to fill blanks, choose realistic times, and name one example exercise tied to the topic.\n\n"
+        "- Learning Objectives (3-5 concise, measurable objectives)\n"
+        "- Suggested Schedule (state total duration; provide a block-by-block or day-by-day schedule with minutes/hours)\n"
+        "- Exercises (3 concrete practice activities; for one activity include step-by-step instructions and expected deliverable)\n"
+        "- Assessment & Success Criteria (how the learner will know they succeeded; include quick rubric or pass/fail checks)\n"
+        "- Quick Self-Check Questions (3 questions, mark one as 'Stretch')\n"
+        "- Recommended Resources (2-4 named resources or short descriptions; prefer search terms or authoritative sources rather than raw links)\n"
+        "- Tips for Study (2-4 tactical tips)\n"
+        "- Optional Extensions & Differentiation (one recommendation each for 'Beginner' and 'Advanced')\n\n"
+        "Formatting and content rules:\n"
+        "1) Return ONLY the plan text in plain text with clear headings (no JSON, no extra commentary, no system notes).\n"
+        "2) If the requirement mentions a timeframe or goal (e.g., '1 month', '5 hours/week'), adapt the Suggested Schedule to match that constraint.\n"
+        "3) Provide realistic time estimates for each block and each exercise. If no timeframe is provided, assume a default total of ~60 minutes.\n"
+        "4) Replace any placeholder tokens (e.g., '[insert ...]') with concrete values derived from the requirement — do NOT emit placeholder markers.\n"
+        "5) Keep output focused and concise but include enough detail for immediate use (examples, deliverables, and success checks). Aim to remain under 1000 words.\n\n"
+        "When adapting the requirement, prioritize clarity, structure, and immediate actionable next steps. If the requirement is broad, pick a clear, narrow focus derived from it and note that in the plan.\n\n"
         "Requirement: {requirement}\n"
         "User: {user_id}\n\n"
     )
@@ -145,7 +154,7 @@ def _generate_plan_fallback(requirement: str, user_id: str, original_plan: Optio
     logger.info("Fallback plan generator triggered due to missing or unavailable LLM.")
     topic = requirement.strip() or "the requested topic"
     # Build a title
-    title = f"Study Plan: {topic[:60]}"
+    title = f"Fallback Study Plan: {topic[:60]}"
 
     # Derive simple objectives by splitting requirement on common separators or by rephrasing
     objectives = []

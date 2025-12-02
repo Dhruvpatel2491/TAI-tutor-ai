@@ -915,6 +915,53 @@ def update_saved_plan():
 	# Return updated metadata
 	return jsonify({"status": "updated", "path": str(p), "plan_text": new_plan_text}), 200
 
+
+@app.route("/saved_plans/delete", methods=["POST"])
+def delete_saved_plan():
+	"""Delete a saved plan file.
+
+	Expected JSON body: { "path": "/abs/path/to/file.json" } or { "plan_name": "name" }
+	Auth behavior mirrors other saved_plans endpoints.
+	"""
+	payload = request.get_json(force=True, silent=True) or {}
+	file_path = payload.get("path")
+	plan_name = payload.get("plan_name")
+
+	# determine user id via auth unless disabled
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id (server running with DISABLE_AUTH=true)"}), 400
+
+	# Resolve file path if only plan_name provided
+	if not file_path:
+		if not plan_name:
+			return jsonify({"error": "missing path or plan_name"}), 400
+		save_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans" / str(user_id)
+		candidate = save_dir / f"{plan_name}.json"
+		if not candidate.exists():
+			return jsonify({"error": f"plan file not found: {candidate}"}), 404
+		file_path = str(candidate)
+
+	try:
+		p = Path(file_path)
+		if not p.exists():
+			return jsonify({"error": "file not found"}), 404
+		p.unlink()
+		return jsonify({"status": "deleted", "path": str(p)}), 200
+	except Exception as e:
+		logger.exception("Failed to delete saved plan file")
+		return jsonify({"error": str(e)}), 500
+
 @app.route("/saved_plans", methods=["GET"])
 def list_saved_plans():
 	"""
