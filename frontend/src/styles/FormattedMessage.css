@@ -20,9 +20,7 @@
   line-height: 1.5;
 }
 
-.formatted-message--hint {
-  --fm-accent: #0ea5a4; /* teal for hints */
-}
+/* hint variant removed — keep a single neutral style */
 
 .code-block {
   background-color: var(--fm-code-bg);

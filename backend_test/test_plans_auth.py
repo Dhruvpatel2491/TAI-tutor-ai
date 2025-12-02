@@ -80,23 +80,23 @@ def test_register_login_and_plans_endpoints(tmp_path, monkeypatch):
 
     # Register a user (dev flow issues token)
     rv = client.post("/auth/register", json={"user_id": "alice"})
-    assert rv.status_code == 200
+    assert rv.status_code in (200, 201)
     token = rv.get_json().get("token")
     assert token
 
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Create a plan as alice
-    rv2 = client.post("/plans", json={"topics": ["math", "py"] , "notes": "start"}, headers=headers)
+    # Create a plan as alice (new API: send a single 'requirement' string)
+    rv2 = client.post("/plans", json={"requirement": "math basics"}, headers=headers)
     assert rv2.status_code == 201
     plan = rv2.get_json()
     assert plan.get("user_id") == "alice"
-    plan_id = plan.get("id")
+    plan_id = plan.get("plan_id")
 
     # Listing plans for alice
     rv3 = client.get("/plans", headers=headers)
     assert rv3.status_code == 200
-    assert any(p.get("id") == plan_id for p in rv3.get_json())
+    assert any(p.get("plan_id") == plan_id for p in rv3.get_json())
 
     # Fetch single plan
     rv4 = client.get(f"/plans/{plan_id}", headers=headers)

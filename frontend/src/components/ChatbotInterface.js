@@ -42,13 +42,12 @@ const ChatbotInterface = () => {
   // State - Model Configuration
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [models] = useState(AVAILABLE_MODELS);
-  // State - Prompt Mode Configuration (hint or direct)
-  const PROMPT_MODES = ["hint", "direct"];
-  const [selectedPromptMode, setSelectedPromptMode] = useState(process.env.REACT_APP_DEFAULT_PROMPT_MODE || 'hint');
+  // Prompt mode removed — app uses a single default response style
 
   // State - Backend Connection
   const [backendURL, setBackendURL] = useState(DEFAULT_BACKEND_URL);
   const [backendStatus, setBackendStatus] = useState(STATUS_CHECKING);
+  const [rebuildInfo, setRebuildInfo] = useState(null);
   const [showURLInput, setShowURLInput] = useState(false);
   const [tempURL, setTempURL] = useState(backendURL);
 
@@ -65,10 +64,28 @@ const ChatbotInterface = () => {
       const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT);
       const response = await apiGet(`${backendURL}/health`, { signal: controller.signal });
       clearTimeout(timeoutId);
-      setBackendStatus(response.ok ? STATUS_CONNECTED : STATUS_DISCONNECTED);
+      if (!response.ok) {
+        setBackendStatus(STATUS_DISCONNECTED);
+        setRebuildInfo(null);
+        return;
+      }
+      // parse JSON health payload to surface rebuild details
+      const data = await response.json().catch(() => ({}));
+      // keep the raw payload for UI
+      setRebuildInfo(data || null);
+      const status = (data && data.status) || "ok";
+      if (status === 'ok') {
+        setBackendStatus(STATUS_CONNECTED);
+      } else if (typeof status === 'string' && status.startsWith('rebuild')) {
+        // still mark as connected but indicate rebuild in UI
+        setBackendStatus(STATUS_CONNECTED);
+      } else {
+        setBackendStatus(STATUS_DISCONNECTED);
+      }
     } catch (error) {
       // network or fetch error -> treat as disconnected
       setBackendStatus(STATUS_DISCONNECTED);
+      setRebuildInfo(null);
     }
   }, [backendURL]);
 
@@ -188,6 +205,14 @@ const ChatbotInterface = () => {
             {/* colored dot */}
             <span className={`status-indicator ${statusClass}`}></span>
             <span className="status-text">{statusText}</span>
+            {/* Show rebuild details if backend reports a rebuild in progress */}
+            {rebuildInfo && typeof rebuildInfo === 'object' && (rebuildInfo.status === 'rebuild_started' || rebuildInfo.status === 'rebuild_already_in_progress') && (
+              <div className="rebuild-info" title="Backend detected index/embeddings mismatch">
+                <small style={{ display: 'block' }}>
+                  Rebuilding index: {rebuildInfo.new_files || rebuildInfo.current_files || 0} new document(s)
+                </small>
+              </div>
+            )}
             {/* retry button */}
             <button
               className="status-retry-btn"
@@ -276,24 +301,7 @@ const ChatbotInterface = () => {
             </div>
           </div>
 
-          <div className="control-half">
-            <label htmlFor="prompt-mode-dropdown">Prompt Mode:</label>
-            <div className="model-control">
-              <select
-                id="prompt-mode-dropdown"
-                value={selectedPromptMode}
-                onChange={(e) => setSelectedPromptMode(e.target.value)}
-                disabled={loading}
-                className="model-dropdown"
-              >
-                {PROMPT_MODES.map(mode => (
-                  <option key={mode} value={mode}>
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Prompt Mode removed to simplify UI */}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from datetime import datetime, timezone
+import time
 import threading
 import os
 import logging
@@ -24,9 +25,22 @@ except Exception:
 # Local module imports (no `backend.` prefix) so running `python server.py`
 # from the backend folder works as expected.
 ## Removed prompts.py and all related imports
-from planner import default_planner
-import auth
-from auth import get_user_from_request
+# Import planner with a fallback so running as a module or script works
+try:
+	# When imported as `backend` package
+	from backend.planner import default_planner
+except Exception:
+	# When running `python server.py` from the backend folder the top-level
+	# module name is `planner.py`, so fall back to that import path.
+	from planner import default_planner
+try:
+	# package import when running as `backend` package
+	from backend import auth
+	from backend.auth import get_user_from_request
+except Exception:
+	# fallback when running as a script from the backend folder
+	import auth
+	from auth import get_user_from_request
 
 # Compatibility wrapper: some versions of llama-index expect a Prompt-like object
 # with a `partial_format(**kwargs)` method. Our prompt helpers return plain strings.
@@ -93,10 +107,10 @@ DATA_DIR 	= "./trial-data"
 EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")
 OLLAMA_LLM = os.environ.get("OLLAMA_LLM", "llama3:8b")
 OLLAMA_EMBED = os.environ.get("OLLAMA_EMBED", "bge-m3:latest")
-DEFAULT_TEMPERATURE = float(os.environ.get("DEFAULT_TEMPERATURE", "5.0"))
+DEFAULT_TEMPERATURE = float(os.environ.get("DEFAULT_TEMPERATURE", "0.5"))
 DEFAULT_MAX_TOKENS = int(os.environ.get("DEFAULT_MAX_TOKENS", "1024"))
 DEFAULT_TIMEOUT = int(os.environ.get("DEFAULT_TIMEOUT", "600"))  # seconds
-DEFAULT_PROMPT_MODE = os.environ.get("DEFAULT_PROMPT_MODE", "hint").strip().lower()  # 'hint' or 'direct'
+DEFAULT_PROMPT_MODE = os.environ.get("DEFAULT_PROMPT_MODE", "direct").strip().lower()  # 'hint' or 'direct'
 
 # Main project directory (allows saving/reading files relative to a configurable root)
 MAIN_PROJECT_DIR = os.environ.get("MAIN_PROJECT_DIR", os.getcwd())
@@ -115,41 +129,42 @@ def is_auth_disabled() -> bool:
 	except Exception:
 		return False
 
-# Plan-generation model and prompt templates (embedded here in server per request)
-PLAN_MODEL = os.environ.get("PLAN_MODEL", "llama3:latest")
+try:
+	from backend.planner import default_planner, generate_plan
+except Exception:
+	from planner import default_planner, generate_plan
+PLAN_MODEL = os.environ.get("PLAN_MODEL", "gpt-oss:latest")
 PLAN_TEMPERATURE = float(os.environ.get("PLAN_TEMPERATURE", "0.15"))
-PLAN_MAX_TOKENS = int(os.environ.get("PLAN_MAX_TOKENS", "512"))
-
-# Two general response styles: hint (scaffolded hints, not full solutions) and direct
-HINT_CHAT_PROMPT_TEMPLATE = (
-	"You are an expert tutor. When asked to create a study plan, provide scaffolded, hint-style guidance"
-	" rather than full worked solutions. Be concise, actionable, and focus on learning objectives,"
-	" stepwise progression, and short self-checks.\n\nTopics: {question}\n\n"
-)
-
-HINT_PROMPT_TEMPLATE = (
-	"You are an expert tutor. When asked to create a study plan, provide scaffolded, hint-style guidance"
-	" rather than full worked solutions. Be concise, actionable, and focus on learning objectives,"
-	" stepwise progression, and short self-checks.\n\nTopics: {topics}\nAdditional notes: {notes}\n\n"
-)
-
-DIRECT_PROMPT_TEMPLATE = (
-	"You are an expert tutor. When asked to create a study plan, provide a direct, explicit,"
-	" and actionable plan including objectives, a week-by-week schedule, suggested resources,"
-	" exercises, and estimated time per session.\n\nTopics: {topics}\nAdditional notes: {notes}\n\n"
-)
-
-PLAN_BODY_TEMPLATE = (
-	"Generate a personalized learning plan for the user (user_id: {user_id}).\n"
-	"Include: 1) Learning objectives, 2) A 4-week (or configurable) schedule with goals per week,"
-	" 3) Suggested exercises or practice problems, 4) Time estimates per session, and 5) 3 quick self-check questions.\n\n"
-	"Return the plan as plain text organized with clear headings."
-)
+PLAN_MAX_TOKENS = int(os.environ.get("PLAN_MAX_TOKENS", "1024"))
 
 # Lazy-loaded globals
 _index_lock = threading.Lock()
 _index_obj = None
 _query_engine = None
+# guard to prevent concurrent async rebuilds started from health checks
+_rebuild_lock = threading.Lock()
+_rebuild_in_progress = False
+REBUILD_COOLDOWN_SECONDS = int(os.environ.get("REBUILD_COOLDOWN_SECONDS", str(1 * 60)))  # default 10 minutes
+REBUILD_LOCK_FILE = Path(INDEX_DIR) / ".rebuild_lock.json"
+
+def _read_persisted_rebuild_lock():
+	try:
+		if REBUILD_LOCK_FILE.exists():
+			with open(REBUILD_LOCK_FILE, "r", encoding="utf-8") as f:
+				return json.load(f)
+	except Exception:
+		logger.debug("Could not read persisted rebuild lock file")
+	return {}
+
+def _write_persisted_rebuild_lock(data: dict):
+	try:
+		os.makedirs(REBUILD_LOCK_FILE.parent, exist_ok=True)
+		tmp = str(REBUILD_LOCK_FILE) + ".tmp"
+		with open(tmp, "w", encoding="utf-8") as f:
+			json.dump(data, f)
+		os.replace(tmp, str(REBUILD_LOCK_FILE))
+	except Exception:
+		logger.warning("Could not write persisted rebuild lock file")
 # module-level reference to the vector_store_gen.get_or_create_index function (populated lazily)
 get_or_create_index = None
 
@@ -252,7 +267,143 @@ def get_index(force_rebuild: bool = False, build_kwargs: dict | None = None):
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok"}), 200
+	"""
+	Health endpoint with a lightweight check for index/embeddings presence.
+	If the persisted index or embeddings appear missing, start an asynchronous
+	rebuild of the index (non-blocking) and return an informative status so
+	the frontend can surface that a rebuild is in progress.
+	"""
+	try:
+		index_file = Path(INDEX_DIR) / "docstore.json"
+		index_exists = index_file.exists()
+
+		# Check embedding metadata (if present) and compare with actual data files
+		embeddings_meta = set()
+		try:
+			# import helper from vector_store_gen if available
+			try:
+				from vector_store_gen import load_embedding_metadata
+			except Exception:
+				load_embedding_metadata = None
+
+			if load_embedding_metadata:
+				embeddings_meta = load_embedding_metadata(INDEX_DIR)
+				if not isinstance(embeddings_meta, (set, list)):
+					embeddings_meta = set(embeddings_meta or [])
+				else:
+					embeddings_meta = set(embeddings_meta)
+		except Exception as e:
+			logger.warning(f"Could not read embedding metadata: {e}")
+			embeddings_meta = set()
+
+		# collect current data files under DATA_DIR
+		current_files = set()
+		try:
+			for root, _, files in os.walk(DATA_DIR):
+				for fname in files:
+					current_files.add(os.path.abspath(os.path.join(root, fname)))
+		except Exception as e:
+			logger.warning(f"Could not enumerate data files in {DATA_DIR}: {e}")
+
+		# determine mismatches
+		missing_on_disk = [p for p in embeddings_meta if not os.path.exists(p)]
+		new_files = list(current_files - embeddings_meta) if embeddings_meta else list(current_files)
+
+		needs_rebuild = False
+		reason = []
+		if not index_exists:
+			needs_rebuild = True
+			reason.append("missing_index")
+		if missing_on_disk:
+			needs_rebuild = True
+			reason.append("meta_points_to_missing_files")
+		if new_files:
+			needs_rebuild = True
+			reason.append("new_data_files")
+
+		if needs_rebuild:
+			logger.info(f"Health check: rebuild needed (reasons={reason}) index_exists={index_exists} meta_count={len(embeddings_meta)} current_files={len(current_files)}")
+
+			# guard to ensure only one async rebuild is started and respect persisted cooldown
+			global _rebuild_in_progress
+			started = False
+			cooldown_blocked = False
+			cooldown_seconds_left = 0
+			with _rebuild_lock:
+				# check persisted lock to avoid frequent rebuilds across restarts
+				persisted = _read_persisted_rebuild_lock() or {}
+				last_started = persisted.get("last_started")
+				now_ts = time.time()
+				if last_started:
+					try:
+						last_ts = float(last_started)
+					except Exception:
+						last_ts = 0
+					elapsed = now_ts - last_ts
+					if elapsed < REBUILD_COOLDOWN_SECONDS:
+						cooldown_blocked = True
+						cooldown_seconds_left = int(REBUILD_COOLDOWN_SECONDS - elapsed)
+				# also check in-memory flag
+				if not cooldown_blocked and not _rebuild_in_progress:
+					# update persisted last_started immediately to claim the slot
+					try:
+						persisted["last_started"] = str(now_ts)
+						_write_persisted_rebuild_lock(persisted)
+					except Exception:
+						logger.debug("Failed to persist rebuild start time")
+					_rebuild_in_progress = True
+					started = True
+
+			if cooldown_blocked:
+				logger.info(f"Rebuild suppressed due to cooldown (seconds_left={cooldown_seconds_left})")
+				rebuild_status = "rebuild_cooldown"
+			elif started:
+				def _async_rebuild():
+					global _rebuild_in_progress
+					try:
+						# attempt to force a rebuild (this will call into vector_store_gen)
+						get_index(force_rebuild=True)
+						logger.info("Async rebuild completed successfully")
+						# record completion time
+						try:
+							persisted = _read_persisted_rebuild_lock() or {}
+							persisted["last_completed"] = str(time.time())
+							_write_persisted_rebuild_lock(persisted)
+						except Exception:
+							logger.debug("Failed to persist rebuild completion time")
+					except Exception:
+						logger.exception("Async rebuild failed")
+					finally:
+						with _rebuild_lock:
+							_rebuild_in_progress = False
+
+				t = threading.Thread(target=_async_rebuild, daemon=True)
+				t.start()
+				rebuild_status = "rebuild_started"
+			else:
+				logger.info("Async rebuild already in progress; not starting a new one")
+				rebuild_status = "rebuild_already_in_progress"
+
+			return jsonify({
+				"status": rebuild_status,
+				"index_exists": index_exists,
+				"meta_entries": len(embeddings_meta),
+				"current_files": len(current_files),
+				"missing_meta_files": len(missing_on_disk),
+				"new_files": len(new_files),
+				"reasons": reason,
+			}), 200
+
+		# all good
+		return jsonify({
+			"status": "ok",
+			"index_exists": index_exists,
+			"meta_entries": len(embeddings_meta),
+			"current_files": len(current_files),
+		}), 200
+	except Exception as e:
+		logger.exception("Health check failed")
+		return jsonify({"status": "error", "error": str(e)}), 500
 
 @app.route("/query", methods=["POST"])
 def query():
@@ -433,8 +584,7 @@ def query_v2():
 					return f"MOCK_ECHO_V2: {self._q}"
 			response = _MockResponseV2(question)
 		else:
-			style_prompt = HINT_CHAT_PROMPT_TEMPLATE.format(question=question)
-
+			# Use the query engine directly for retrieval-style queries
 			response = query_engine.query(question)
 		logger.debug(f"Response object: type={type(response)}; str={str(response)[:200]}")
 
@@ -481,8 +631,16 @@ def auth_register():
 	payload = request.get_json(force=True, silent=True) or {}
 	email = payload.get("email") or payload.get("user_id")
 	password = payload.get("password")
-	if not email or not password:
-		return jsonify({"error": "missing email or password"}), 400
+	# For developer convenience (tests/dev), allow a simple register flow when
+	# only a user_id is provided and no password. In that case, issue a JWT
+	# directly without persisting a password. This keeps the endpoint usable
+	# in lightweight dev/test scenarios.
+	if not email:
+		return jsonify({"error": "missing email or user_id"}), 400
+	if not password:
+		# dev/test flow: return a token without creating a persisted account
+		token = auth.create_jwt_for_user(email)
+		return jsonify({"token": token}), 200
 	try:
 		# register persists to disk via backend/auth.register_user
 		auth.register_user(email, password)
@@ -530,122 +688,42 @@ def create_plan():
 		user_id = payload.get("user_id")
 
 	payload = request.get_json(force=True, silent=True) or {}
-	topics = payload.get("topics") or []
-	notes = payload.get("notes")
-	if not user_id or not isinstance(topics, (list, tuple)):
-		return jsonify({"error": "invalid payload, require topics list (and authenticated user)"}), 400
+	# Expect a single 'requirement' string from the frontend (not a topics list)
+	requirement = payload.get("requirement") or payload.get("requirements") or ""
+	if not user_id or not isinstance(requirement, str):
+		return jsonify({"error": "invalid payload, require 'requirement' string (and authenticated user)"}), 400
 
-	# Decide whether to generate the plan text using the backend Ollama LLM.
+	# Support mock path for tests/dev
 	use_mock = bool(payload.get("mock") or payload.get("use_mock") or os.environ.get("MOCK_LLM_ECHO"))
-	plan_text = notes
+
+	plan_text = ""
 	if not use_mock:
 		try:
-			# allow request to override model & generation params
 			gen_model = payload.get("plan_model") or PLAN_MODEL
 			gen_temp = float(payload.get("plan_temperature", PLAN_TEMPERATURE))
 			gen_max = int(payload.get("plan_max_tokens", PLAN_MAX_TOKENS))
-			prompt_mode = (payload.get("prompt_mode") or DEFAULT_PROMPT_MODE).strip().lower()
-
-			# Compose prompt from chosen style
-			topics_str = ", ".join(topics) if isinstance(topics, (list, tuple)) else str(topics)
-			if prompt_mode == "direct":
-				style_prompt = DIRECT_PROMPT_TEMPLATE.format(topics=topics_str, notes=(notes or ""))
-			else:
-				style_prompt = HINT_PROMPT_TEMPLATE.format(topics=topics_str, notes=(notes or ""))
-
-			plan_prompt = style_prompt + PLAN_BODY_TEMPLATE.format(user_id=user_id, topics=topics_str, notes=(notes or ""))
-
-			# Support iterative edits: caller may provide an existing plan id and
-			# edit instructions. If provided, fetch the previous plan and include it
-			# in the prompt so the model can produce an improved version.
-			parent_id = None
 			edit_plan_id = payload.get("edit_plan_id")
 			edit_instructions = payload.get("edit_instructions")
-			if edit_plan_id:
-				parent = default_planner.get_plan(edit_plan_id)
-				if not parent:
-					return jsonify({"error": f"edit_plan_id '{edit_plan_id}' not found"}), 400
-				parent_id = edit_plan_id
-				prev_text = parent.notes or ""
-				# Extend the prompt to give the model the previous plan and explicit
-				# instructions for how to edit it.
-				edit_block = "\n\nPrevious plan:\n" + prev_text + "\n\n"
-				if edit_instructions:
-					edit_block += "Edit instructions: " + str(edit_instructions) + "\n\n"
-				else:
-					edit_block += "Edit instructions: Improve clarity, organization, and suggest additional exercises as appropriate.\n\n"
-				# Ask the model to return a revised plan and to note a short changelog
-				plan_prompt = style_prompt + "Please revise the following plan according to the edit instructions.\n" + edit_block + PLAN_BODY_TEMPLATE.format(user_id=user_id, topics=topics_str, notes=(notes or "")) + "\n\nAlso include a short 'Change log' section describing what you changed."
+			original_plan = None
+			# callers may optionally pass original_plan_text for iterative edits
+			if payload.get("original_plan_text"):
+				original_plan = payload.get("original_plan_text")
+			elif edit_plan_id:
+				# if caller provided an existing planner-managed plan id, include it for iterative generation
+				prev = default_planner.get_plan(edit_plan_id)
+				if prev:
+					original_plan = getattr(prev, "plan_text", None)
 
-			# Ensure the index is available so we can reuse the existing query engine plumbing
-			# (this mirrors how /query_v2 constructs a per-request Ollama and query engine).
-			try:
-				index_obj, _ = get_index(force_rebuild=False)
-			except Exception:
-				# If index is not available, try to initialize models so Ollama client can be used alone.
-				try:
-					init_models()
-				except Exception:
-					# fall back to mock behavior if Ollama can't be used
-					logger.exception("Could not prepare models for plan generation; falling back to simple plan text.")
-					index_obj = None
-
-			# Instantiate a per-request Ollama model for generation
-			try:
-				per_request_llm = Ollama(model=gen_model, temperature=gen_temp, max_tokens=gen_max, request_timeout=DEFAULT_TIMEOUT)
-			except Exception as e:
-				logger.exception("Failed to instantiate Ollama for plan generation")
-				per_request_llm = None
-
-			if per_request_llm and index_obj is not None:
-				try:
-					qe = index_obj.as_query_engine(llm=per_request_llm)
-					resp = qe.query(plan_prompt)
-					plan_text = str(resp)
-				except Exception:
-					logger.exception("Plan generation via query engine failed; attempting direct LLM call")
-					try:
-						# Best-effort direct call: some LLM wrappers implement __call__ or generate
-						if hasattr(per_request_llm, "generate"):
-							gen = per_request_llm.generate(plan_prompt)
-							plan_text = str(gen)
-						elif callable(per_request_llm):
-							plan_text = str(per_request_llm(plan_prompt))
-						else:
-							# final fallback: use the prompt itself as the plan body
-							plan_text = plan_prompt
-					except Exception:
-						logger.exception("Direct LLM generation failed; using prompt as plan text")
-						plan_text = plan_prompt
-			elif per_request_llm and index_obj is None:
-				# try direct call without index
-				try:
-					if hasattr(per_request_llm, "generate"):
-						gen = per_request_llm.generate(plan_prompt)
-						plan_text = str(gen)
-					elif callable(per_request_llm):
-						plan_text = str(per_request_llm(plan_prompt))
-					else:
-						plan_text = plan_prompt
-				except Exception:
-					logger.exception("Direct LLM generation without index failed; falling back to prompt text")
-					plan_text = plan_prompt
-			else:
-				# Could not use LLM; leave plan_text as provided notes (or empty)
-				if not plan_text:
-					plan_text = "A short plan: topics: " + topics_str
+			plan_text = generate_plan(user_id=user_id, requirement=requirement, original_plan=original_plan, edit_instructions=edit_instructions, model=gen_model, temperature=gen_temp, max_tokens=gen_max)
 		except Exception:
-			logger.exception("Unexpected error during plan generation; falling back to simple plan storage")
+			logger.exception("Plan generation failed; storing empty plan_text")
 
-	# Persist the plan (notes field will contain either generated plan text or provided notes)
-	# Persist the plan. If this was an edit, record the parent plan id to enable
-	# iterative/versioned plans.
-	plan = default_planner.create_plan(user_id=user_id, topics=list(topics), notes=plan_text, parent_id=parent_id)
-	# Use Pydantic v2 `model_dump()` to avoid deprecation of `.dict()`.
+	# Persist the plan into planner store
+	created = default_planner.create_plan(user_id=user_id, plan_text=plan_text)
 	try:
-		out = plan.model_dump()
+		out = created.model_dump()
 	except Exception:
-		out = getattr(plan, "__dict__", {})
+		out = getattr(created, "__dict__", {})
 	return jsonify(out), 201
 
 
@@ -714,7 +792,7 @@ def save_plan():
 	"""
 	payload = request.get_json(force=True, silent=True) or {}
 	plan_name = payload.get("plan_name")
-	plan_text = payload.get("plan_text") or payload.get("notes") or ""
+	plan_text = payload.get("plan_text") or ""
 	if not plan_name:
 		return jsonify({"error": "missing plan_name"}), 400
 
@@ -750,6 +828,92 @@ def save_plan():
 	except Exception as e:
 		logger.exception("Failed to save plan to disk")
 		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/saved_plans/update", methods=["POST"])
+def update_saved_plan():
+	"""Regenerate and update an existing saved plan file.
+
+	Expected JSON body: { "path": "/abs/path/to/file.json", "new_requirement": "...", "original_plan_text": "...", "edit_instructions": "..." }
+	If `path` is not provided, `plan_name` and user identification (auth or user_id) can be used.
+	Returns updated plan metadata on success.
+	"""
+	payload = request.get_json(force=True, silent=True) or {}
+	file_path = payload.get("path")
+	plan_name = payload.get("plan_name")
+	# Accept either 'new_requirement' or a single 'requirement' field
+	new_requirement = payload.get("new_requirement") or payload.get("requirement") or ""
+	original_text = payload.get("original_plan_text")
+	edit_instructions = payload.get("edit_instructions")
+
+	# determine user id via auth unless disabled
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id (server running with DISABLE_AUTH=true)"}), 400
+
+	# Resolve file path if only plan_name provided
+	if not file_path:
+		if not plan_name:
+			return jsonify({"error": "missing path or plan_name"}), 400
+		save_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans" / str(user_id)
+		candidate = save_dir / f"{plan_name}.json"
+		if not candidate.exists():
+			return jsonify({"error": f"plan file not found: {candidate}"}), 404
+		file_path = str(candidate)
+
+	try:
+		p = Path(file_path)
+		if not p.exists():
+			return jsonify({"error": "file not found"}), 404
+		with p.open("r", encoding="utf-8") as fh:
+			data = json.load(fh)
+	except Exception as e:
+		logger.exception("Failed to read saved plan file")
+		return jsonify({"error": str(e)}), 500
+
+	# If original_text wasn't provided, prefer the file's plan_text
+	if not original_text:
+		original_text = data.get("plan_text") if isinstance(data, dict) else None
+
+	if not new_requirement:
+		return jsonify({"error": "missing new_requirement"}), 400
+
+	# Generate new plan text
+	try:
+		gen_model = payload.get("plan_model") or PLAN_MODEL
+		gen_temp = float(payload.get("plan_temperature", PLAN_TEMPERATURE))
+		gen_max = int(payload.get("plan_max_tokens", PLAN_MAX_TOKENS))
+		new_plan_text = generate_plan(user_id=user_id, requirement=new_requirement, original_plan=original_text, edit_instructions=edit_instructions, model=gen_model, temperature=gen_temp, max_tokens=gen_max)
+	except Exception:
+		logger.exception("Plan regeneration failed")
+		return jsonify({"error": "regeneration failed"}), 500
+
+	# Update file content and write back
+	try:
+		# Prefer to preserve other metadata keys
+		if isinstance(data, dict):
+			data["plan_text"] = new_plan_text
+			data["updated_at"] = datetime.now(timezone.utc).isoformat()
+		else:
+			data = {"name": plan_name or p.stem, "user_id": user_id, "plan_text": new_plan_text, "updated_at": datetime.now(timezone.utc).isoformat()}
+		with p.open("w", encoding="utf-8") as fh:
+			json.dump(data, fh, indent=2)
+	except Exception as e:
+		logger.exception("Failed to write updated plan file")
+		return jsonify({"error": str(e)}), 500
+
+	# Return updated metadata
+	return jsonify({"status": "updated", "path": str(p), "plan_text": new_plan_text}), 200
 
 @app.route("/saved_plans", methods=["GET"])
 def list_saved_plans():

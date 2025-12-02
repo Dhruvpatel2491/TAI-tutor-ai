@@ -19,6 +19,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [hasUnsavedGeneratedPlan, setHasUnsavedGeneratedPlan] = useState(false);
 
   // When a generated plan arrives and the user is in the editor (isTyping),
   // copy it into the editable planText field so the textarea shows the
@@ -129,14 +130,16 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     try {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const body = { topics: [requirements] };
+      const body = { requirement: requirements };
       const res = await apiPost(`${backendURL}/plans`, body);
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const planText = data.notes || data.plan_text || data.answer || "";
+        const planText = data.plan_text || data.answer || data.text || "";
         // load into generated plan and switch to create/edit view for review
         //console.log('Generated plan text:', planText);
         setGeneratedPlan(planText || "");
+        // mark that we have a newly generated plan that hasn't been saved yet
+        setHasUnsavedGeneratedPlan(true);
         console.log("createPlan:: response data:", data);
 
         setSelectedPlan({
@@ -158,6 +161,49 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         }
       } else {
         setMsg(data.error || "Failed to generate plan");
+      }
+    } catch (e) {
+      setMsg("Network error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const regenerateSavedPlan = async (path) => {
+    if (!requirements.trim()) {
+      setMsg("Please enter new requirement for regeneration");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const body = {
+        path: path,
+        new_requirement: requirements,
+        // include the original plan text so the backend can perform iterative regeneration
+        original_plan_text: selectedPlan?.text || planText || "",
+      };
+      const res = await apiPost(`${backendURL}/saved_plans/update`, body);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const planText = data.plan_text || "";
+        // update UI
+        setSelectedPlan((prev) => ({ ...(prev || {}), text: planText }));
+        setPlanText(planText);
+        setGeneratedPlan(planText);
+        setHasUnsavedGeneratedPlan(false);
+        setMsg("Plan regenerated and updated");
+        // refresh list
+        fetchPlans();
+      } else if (res.status === 401) {
+        if (data && data.error && data.error.toLowerCase().includes("token")) {
+          handleInvalidToken();
+        } else {
+          setMsg(data.error || "Unauthorized");
+        }
+      } else {
+        setMsg(data.error || "Failed to regenerate plan");
       }
     } catch (e) {
       setMsg("Network error");
@@ -192,6 +238,8 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
           /* ignore */
         }
         // reload to ensure caller sees fresh data (per UX requirement)
+        // clear unsaved flag and reload
+        setHasUnsavedGeneratedPlan(false);
         window.location.reload();
       } else if (res.status === 401) {
         if (data && data.error && data.error.toLowerCase().includes("token")) {
@@ -221,64 +269,117 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const renderMarkdown = (md) => {
     if (!md) return "";
     // normalize line endings
-    const text = String(md || "");
-    // escape HTML first
-    let safe = escapeHtml(text);
-
-    // convert bold **text**
-    safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-    // split lines and build lists/paragraphs
-    const lines = safe.split(/\r?\n/);
+    const raw = String(md || "");
+    const inputLines = raw.split(/\r?\n/);
     const out = [];
     let inUl = false;
     let inOl = false;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) {
-        if (inUl) {
-          out.push("</ul>");
-          inUl = false;
-        }
-        if (inOl) {
-          out.push("</ol>");
-          inOl = false;
+    let inCode = false;
+    let codeBuffer = [];
+
+    for (let i = 0; i < inputLines.length; i++) {
+      const rawLine = inputLines[i];
+
+      // Code fence handling (```)
+      if (rawLine.trim().startsWith("```") ) {
+        if (!inCode) {
+          // enter code block
+          inCode = true;
+          codeBuffer = [];
+        } else {
+          // close code block
+          inCode = false;
+          const codeHtml = escapeHtml(codeBuffer.join("\n"));
+          out.push(`<pre><code>${codeHtml}</code></pre>`);
+          codeBuffer = [];
         }
         continue;
       }
+
+      if (inCode) {
+        // collect raw code lines (do not run markdown transforms)
+        codeBuffer.push(rawLine);
+        continue;
+      }
+
+      const line = rawLine.trim();
+      // table detection: header row contains '|' and next line is a separator with '---'
+      const nextLine = inputLines[i + 1] || "";
+      const looksLikeTable = rawLine.includes("|") && nextLine.includes("---");
+      if (looksLikeTable) {
+        // close any open lists
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+
+        // parse header
+        const headerCells = rawLine.split("|").map((c) => escapeHtml(c.trim())).filter((c) => c !== "");
+        const rows = [];
+        let j = i + 2;
+        while (j < inputLines.length && inputLines[j].includes("|")) {
+          const cells = inputLines[j].split("|").map((c) => escapeHtml(c.trim())).filter((c) => c !== "");
+          rows.push(cells);
+          j += 1;
+        }
+        // build table HTML
+        out.push('<table class="md-table">');
+        out.push('<thead><tr>' + headerCells.map((h) => `<th>${h}</th>`).join("") + '</tr></thead>');
+        if (rows.length > 0) {
+          out.push('<tbody>');
+          rows.forEach((r) => {
+            out.push('<tr>' + r.map((c) => `<td>${c}</td>`).join("") + '</tr>');
+          });
+          out.push('</tbody>');
+        }
+        out.push('</table>');
+        // advance index to last consumed row
+        i = j - 1;
+        continue;
+      }
+
+      if (!line) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        continue;
+      }
+
+      // inline transforms for non-code lines
+      let safeLine = escapeHtml(line);
+      // convert bold **text**
+      safeLine = safeLine.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
       const ulMatch = line.match(/^[-+*]\s+(.*)$/);
       const olMatch = line.match(/^\d+\.\s+(.*)$/);
-      const h1 = line.match(/^#\s+(.*)$/);
+      const h3 = line.match(/^###\s+(.*)$/);
       const h2 = line.match(/^##\s+(.*)$/);
-      const strongOnly = line.match(/^<strong>(.+)<\/strong>$/);
+      const h1 = line.match(/^#\s+(.*)$/);
+      const strongOnly = safeLine.match(/^<strong>(.+)<\/strong>$/);
+
       if (ulMatch) {
-        if (!inUl) {
-          out.push("<ul>");
-          inUl = true;
-        }
-        out.push(`<li>${ulMatch[1]}</li>`);
+        if (!inUl) { out.push("<ul>"); inUl = true; }
+        out.push(`<li>${escapeHtml(ulMatch[1])}</li>`);
         continue;
       } else if (olMatch) {
-        if (!inOl) {
-          out.push("<ol>");
-          inOl = true;
-        }
-        out.push(`<li>${olMatch[1]}</li>`);
+        if (!inOl) { out.push("<ol>"); inOl = true; }
+        out.push(`<li>${escapeHtml(olMatch[1])}</li>`);
         continue;
-      } else if (h1) {
-        out.push(`<h1>${h1[1]}</h1>`);
+      } else if (h3) {
+        out.push(`<h3>${escapeHtml(h3[1])}</h3>`);
         continue;
       } else if (h2) {
-        out.push(`<h2>${h2[1]}</h2>`);
+        out.push(`<h2>${escapeHtml(h2[1])}</h2>`);
+        continue;
+      } else if (h1) {
+        out.push(`<h1>${escapeHtml(h1[1])}</h1>`);
         continue;
       } else if (strongOnly) {
-        // lines that are entirely bold get promoted to a heading
-        out.push(`<h2>${strongOnly[1]}</h2>`);
+        out.push(`<h2>${escapeHtml(strongOnly[1])}</h2>`);
         continue;
       }
+
       // plain paragraph line
-      out.push(`<p>${line}</p>`);
+      out.push(`<p>${safeLine}</p>`);
     }
+
     if (inUl) out.push("</ul>");
     if (inOl) out.push("</ol>");
 
@@ -331,6 +432,13 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             />
           </div>
           <div style={{ marginTop: 12 }}>
+            {hasUnsavedGeneratedPlan && (
+              <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
+                You are reviewing a newly-generated plan. Existing saved plans
+                are temporarily non-interactive until you Save or Clear the new
+                plan.
+              </div>
+            )}
             {savedPlansError && (
               <p className="muted" style={{ color: "crimson" }}>
                 {savedPlansError}
@@ -351,53 +459,54 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                         .includes(filterText.toLowerCase())
                     : true
                 )
-                .map((p, idx) => (
-                  <li
-                    key={p.path || p.filename || p.id || idx}
-                    style={{
-                      marginBottom: 8,
-                      padding: 8,
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      background:
-                        selectedPlan &&
-                        (selectedPlan.name === (p.name || p.filename) ||
-                          selectedPlan.text ===
-                            (p.plan_text || p.text || p.notes))
-                          ? "#f6f9ff"
-                          : "transparent",
-                    }}
-                    onClick={() => {
-                      console.log("Selected plan:", p);
-                      setSelectedPlan({
-                        name: p.name || p.filename || "",
-                        owner: p.owner || p.user_id || p.email || "Unknown",
-                        created_at: p.created_at || p.created || "",
-                        text: p.plan_text || "N/A Plan",
-                      });
-                      setIsTyping(false);
-                      setPlanText("");
-                    }}
-                  >
-                    <div
+                .map((p, idx) => {
+                  const isSelected =
+                    selectedPlan &&
+                    (selectedPlan.name === (p.name || p.filename) ||
+                      selectedPlan.text === (p.plan_text || p.text || ""));
+                  const disabledStyle = hasUnsavedGeneratedPlan
+                    ? { opacity: 0.6, cursor: "not-allowed", pointerEvents: "none" }
+                    : { cursor: "pointer" };
+                  return (
+                    <li
+                      key={p.path || p.filename || p.id || idx}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
+                        marginBottom: 8,
+                        padding: 8,
+                        borderRadius: 6,
+                        background: isSelected ? "#f6f9ff" : "transparent",
+                        ...disabledStyle,
+                      }}
+                      onClick={hasUnsavedGeneratedPlan ? undefined : () => {
+                        console.log("Selected plan:", p);
+                        setSelectedPlan({
+                          name: p.name || p.filename || "",
+                          owner: p.owner || p.user_id || p.email || "Unknown",
+                          created_at: p.created_at || p.created || "",
+                          text: p.plan_text || p.text || "N/A Plan",
+                          path: p.path || null,
+                        });
+                        setIsTyping(false);
+                        setPlanText("");
                       }}
                     >
-                      <strong style={{ fontSize: 14 }}>
-                        {p.name || p.id || p.filename || `plan-${idx + 1}`}
-                      </strong>
-                      <span
-                        className="muted small-text"
-                        style={{ fontSize: 11 }}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
                       >
-                        {(p.created_at || p.created || "").split("T")[0]}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                        <strong style={{ fontSize: 14 }}>
+                          {p.name || p.id || p.filename || `plan-${idx + 1}`}
+                        </strong>
+                        <span className="muted small-text" style={{ fontSize: 11 }}>
+                          {(p.created_at || p.created || "").split("T")[0]}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         </div>
@@ -423,25 +532,35 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             <button
               type="button"
               className="btn"
-              onClick={() => {
-                setRequirements("");
-                setGeneratedPlan("");
-                setIsTyping(true);
-                setSelectedPlan(null);
-                setPlanText("");
-                createPlan();
+              onClick={async () => {
+                // If editing an existing saved plan (selectedPlan with path) and in edit mode,
+                // call regeneration endpoint; otherwise create a new plan.
+                if (isTyping && selectedPlan && selectedPlan.path) {
+                  await regenerateSavedPlan(selectedPlan.path);
+                } else {
+                  setRequirements("");
+                  setGeneratedPlan("");
+                  setIsTyping(true);
+                  setSelectedPlan(null);
+                  setPlanText("");
+                  await createPlan();
+                }
               }}
               disabled={isGenerating || !requirements.trim()}
             >
-              Create Plan
+              {isTyping && selectedPlan && selectedPlan.path ? "Edit Plan" : "Create Plan"}
             </button>
             <button
               className="btn secondary"
               onClick={() => {
+                // Reset the whole planner UI to its base state
                 setRequirements("");
                 setIsTyping(false);
                 setGeneratedPlan("");
                 setPlanText("");
+                setSelectedPlan(null);
+                setHasUnsavedGeneratedPlan(false);
+                setMsg("");
               }}
             >
               Clear
@@ -471,8 +590,10 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                   <button
                     className="btn"
                     onClick={() => {
-                      setPlanText("");
-                      setGeneratedPlan("");
+                        setPlanText("");
+                        setGeneratedPlan("");
+                        // user reset -> no unsaved generated plan anymore
+                        setHasUnsavedGeneratedPlan(false);
                     }}
                   >
                     Reset
@@ -573,16 +694,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                 }}
               >
                 <h4 style={{ margin: 0 }}>Generated Plan Preview</h4>
-                <div>
-                  <button
-                    className="btn secondary"
-                    onClick={() => {
-                      setGeneratedPlan("");
-                    }}
-                  >
-                    Clear
-                  </button>
-                </div>
+
               </div>
               <div style={{ marginTop: 12 }}>
                 <div
