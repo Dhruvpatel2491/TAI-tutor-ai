@@ -24,7 +24,12 @@ except Exception:
 # `get_or_create_index` inside `get_index` when needed.
 # Local module imports (no `backend.` prefix) so running `python server.py`
 # from the backend folder works as expected.
-## Removed prompts.py and all related imports
+# Import prompts module for ChatPrompter class
+try:
+	from backend.prompts import ChatPrompter
+except Exception:
+	from prompts import ChatPrompter
+
 # Import planner with a fallback so running as a module or script works
 try:
 	# When imported as `backend` package
@@ -136,6 +141,82 @@ except Exception:
 PLAN_MODEL = os.environ.get("PLAN_MODEL", "gpt-oss:latest")
 PLAN_TEMPERATURE = float(os.environ.get("PLAN_TEMPERATURE", "0.15"))
 PLAN_MAX_TOKENS = int(os.environ.get("PLAN_MAX_TOKENS", "1024"))
+
+# Response caching configuration
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+CACHE_MAX_SIZE = int(os.environ.get("CACHE_MAX_SIZE", "100"))
+CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "3600"))  # 1 hour default
+
+# Simple LRU cache for responses
+from collections import OrderedDict
+import hashlib
+
+class ResponseCache:
+	"""Simple thread-safe LRU cache with TTL for caching LLM responses."""
+	
+	def __init__(self, max_size: int = 100, ttl_seconds: int = 3600):
+		self.max_size = max_size
+		self.ttl_seconds = ttl_seconds
+		self._cache: OrderedDict = OrderedDict()
+		self._lock = threading.Lock()
+	
+	def _make_key(self, question: str, style: str, response_type: str, length: str, model: str) -> str:
+		"""Generate a cache key from query parameters."""
+		key_string = f"{question}|{style}|{response_type}|{length}|{model}"
+		return hashlib.sha256(key_string.encode()).hexdigest()
+	
+	def get(self, question: str, style: str, response_type: str, length: str, model: str) -> str | None:
+		"""Get cached response if available and not expired."""
+		if not CACHE_ENABLED:
+			return None
+		key = self._make_key(question, style, response_type, length, model)
+		with self._lock:
+			if key in self._cache:
+				entry = self._cache[key]
+				if time.time() - entry["timestamp"] < self.ttl_seconds:
+					# Move to end (most recently used)
+					self._cache.move_to_end(key)
+					logger.debug(f"Cache hit for query key: {key[:16]}...")
+					return entry["response"]
+				else:
+					# Expired, remove it
+					del self._cache[key]
+					logger.debug(f"Cache expired for key: {key[:16]}...")
+		return None
+	
+	def set(self, question: str, style: str, response_type: str, length: str, model: str, response: str) -> None:
+		"""Store a response in the cache."""
+		if not CACHE_ENABLED:
+			return
+		key = self._make_key(question, style, response_type, length, model)
+		with self._lock:
+			if key in self._cache:
+				del self._cache[key]
+			self._cache[key] = {"response": response, "timestamp": time.time()}
+			# Evict oldest if over capacity
+			while len(self._cache) > self.max_size:
+				oldest_key = next(iter(self._cache))
+				del self._cache[oldest_key]
+				logger.debug(f"Cache evicted oldest entry")
+	
+	def clear(self) -> None:
+		"""Clear all cached responses."""
+		with self._lock:
+			self._cache.clear()
+			logger.info("Response cache cleared")
+	
+	def stats(self) -> dict:
+		"""Get cache statistics."""
+		with self._lock:
+			return {
+				"size": len(self._cache),
+				"max_size": self.max_size,
+				"ttl_seconds": self.ttl_seconds,
+				"enabled": CACHE_ENABLED
+			}
+
+# Global cache instance
+_response_cache = ResponseCache(max_size=CACHE_MAX_SIZE, ttl_seconds=CACHE_TTL_SECONDS)
 
 # Lazy-loaded globals
 _index_lock = threading.Lock()
@@ -594,6 +675,195 @@ def query_v2():
 	except Exception as e:
 		logger.exception("Query v2 failed")
 		return jsonify({"error": str(e)}), 500
+
+
+# Enhanced query endpoint with full prompt customization and conversation history
+@app.route("/query_v3", methods=["POST"])
+def query_v3():
+	"""
+	POST /query_v3
+	Enhanced query endpoint with support for:
+	- Response style (formal, casual, technical)
+	- Response type (direct, hinting, socratic)
+	- Response length (short, medium, long)
+	- Conversation history for context-awareness
+	- Response caching for faster replies
+	
+	JSON body: {
+		"question": "...",
+		"model": "llama3-chatqa",            # optional - defaults to configured LLM
+		"temperature": 0.0,                  # optional override
+		"max_tokens": 1024,                  # optional override
+		"style": "formal",                   # optional: formal, casual, technical
+		"response_type": "direct",           # optional: direct, hinting, socratic
+		"length": "medium",                  # optional: short, medium, long
+		"conversation_history": [...],       # optional: list of {role, content} dicts
+		"use_cache": true,                   # optional: whether to use response caching
+		"rebuild": false,                    # optional
+		"indexing": {...},                   # optional build-time params for rebuild
+		"retrieval": {...}                   # optional retrieval params
+	}
+	
+	Response: {
+		"answer": "...",
+		"cached": false,                     # whether response was from cache
+		"style": "formal",                   # actual style used
+		"response_type": "direct",           # actual type used
+		"length": "medium"                   # actual length used
+	}
+	"""
+	payload = request.get_json(force=True, silent=True) or {}
+	question = payload.get("question") or payload.get("q") or ""
+	if not question:
+		return jsonify({"error": "missing 'question' in body"}), 400
+
+	# Extract model and generation parameters
+	requested_model = payload.get("model") or OLLAMA_LLM
+	try:
+		temp = float(payload.get("temperature", DEFAULT_TEMPERATURE))
+	except Exception:
+		temp = DEFAULT_TEMPERATURE
+	try:
+		max_toks = int(payload.get("max_tokens", DEFAULT_MAX_TOKENS))
+	except Exception:
+		max_toks = DEFAULT_MAX_TOKENS
+
+	# Extract prompt customization parameters
+	style = (payload.get("style") or "formal").lower()
+	response_type = (payload.get("response_type") or payload.get("type") or "direct").lower()
+	length = (payload.get("length") or "medium").lower()
+	
+	# Validate parameters
+	if style not in ["formal", "casual", "technical"]:
+		style = "formal"
+	if response_type not in ["direct", "hinting", "socratic"]:
+		response_type = "direct"
+	if length not in ["short", "medium", "long"]:
+		length = "medium"
+
+	# Extract conversation history
+	conversation_history = payload.get("conversation_history") or []
+	if not isinstance(conversation_history, list):
+		conversation_history = []
+
+	# Check cache first (unless explicitly disabled)
+	use_cache = payload.get("use_cache", True)
+	cached_response = None
+	if use_cache and not conversation_history:  # Don't cache contextual queries
+		cached_response = _response_cache.get(question, style, response_type, length, requested_model)
+		if cached_response:
+			logger.info(f"Returning cached response for query")
+			return jsonify({
+				"answer": cached_response,
+				"cached": True,
+				"style": style,
+				"response_type": response_type,
+				"length": length
+			}), 200
+
+	rebuild = bool(payload.get("rebuild", False))
+	indexing = payload.get("indexing") or {}
+	if not isinstance(indexing, dict):
+		indexing = {}
+	retrieval = payload.get("retrieval") or {}
+	if not isinstance(retrieval, dict):
+		retrieval = {}
+
+	try:
+		# Get index
+		index_obj, _ = get_index(force_rebuild=rebuild, build_kwargs=(indexing if rebuild else None))
+		if index_obj is None:
+			return jsonify({"error": "index not available"}), 500
+
+		# Instantiate per-request Ollama model
+		try:
+			per_request_llm = Ollama(
+				model=requested_model,
+				temperature=temp,
+				max_tokens=max_toks,
+				request_timeout=300
+			)
+		except Exception as e:
+			logger.exception("Failed to instantiate per-request Ollama model")
+			return jsonify({"error": f"failed to instantiate model '{requested_model}': {e}"}), 500
+
+		# Build the enhanced prompt using ChatPrompter
+		prompter = ChatPrompter.from_history_list(
+			history=conversation_history,
+			style=style,
+			response_type=response_type,
+			length=length
+		)
+		
+		# Generate the full prompt with context
+		enhanced_question = prompter.build_full_prompt(question)
+		logger.debug(f"Enhanced prompt length: {len(enhanced_question)} chars")
+
+		# Create query engine
+		try:
+			r_kwargs = retrieval.copy()
+			query_engine = index_obj.as_query_engine(llm=per_request_llm, **r_kwargs) if r_kwargs else index_obj.as_query_engine(llm=per_request_llm)
+		except TypeError:
+			logger.warning("as_query_engine() may not accept provided retrieval kwargs; creating without them")
+			try:
+				query_engine = index_obj.as_query_engine(llm=per_request_llm)
+			except Exception as e:
+				logger.exception("Failed to create query engine")
+				return jsonify({"error": f"failed to create query engine: {e}"}), 500
+		except Exception as e:
+			logger.exception("Failed to create query engine")
+			return jsonify({"error": f"failed to create query engine: {e}"}), 500
+
+		# Log query details
+		logger.info(f"Query v3: model={requested_model}, style={style}, type={response_type}, length={length}, history_len={len(conversation_history)}")
+
+		# Allow mock path for testing
+		use_mock = bool(payload.get("mock") or payload.get("use_mock") or os.environ.get("MOCK_LLM_ECHO"))
+		if use_mock:
+			class _MockResponseV3:
+				def __init__(self, q, s, t, l):
+					self._q = q
+					self._style = s
+					self._type = t
+					self._length = l
+				def __str__(self):
+					return f"MOCK_ECHO_V3: style={self._style}, type={self._type}, length={self._length} | {self._q[:100]}"
+			response = _MockResponseV3(question, style, response_type, length)
+		else:
+			# Use enhanced question with full prompt context
+			response = query_engine.query(enhanced_question)
+
+		answer_text = str(response)
+		
+		# Cache the response (only for non-contextual queries)
+		if use_cache and not conversation_history:
+			_response_cache.set(question, style, response_type, length, requested_model, answer_text)
+
+		return jsonify({
+			"answer": answer_text,
+			"cached": False,
+			"style": style,
+			"response_type": response_type,
+			"length": length
+		}), 200
+
+	except Exception as e:
+		logger.exception("Query v3 failed")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cache/stats", methods=["GET"])
+def cache_stats():
+	"""Get cache statistics."""
+	return jsonify(_response_cache.stats()), 200
+
+
+@app.route("/cache/clear", methods=["POST"])
+def cache_clear():
+	"""Clear the response cache."""
+	_response_cache.clear()
+	return jsonify({"status": "cache_cleared"}), 200
+
 
 @app.route("/rebuild", methods=["POST"])
 def rebuild():
