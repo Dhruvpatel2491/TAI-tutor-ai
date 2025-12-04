@@ -47,6 +47,12 @@ except Exception:
 	import auth
 	from auth import get_user_from_request
 
+# Import quiz module
+try:
+	from backend import quiz as quiz_module
+except Exception:
+	import quiz as quiz_module
+
 # Compatibility wrapper: some versions of llama-index expect a Prompt-like object
 # with a `partial_format(**kwargs)` method. Our prompt helpers return plain strings.
 # Wrap strings in a small adapter so older/newer llama-index internals that call
@@ -1368,6 +1374,271 @@ def debug_env():
 	# Always return environment variables and their values
 	env = {k: v for k, v in os.environ.items()}
 	return jsonify(env)
+
+
+# ============================================================================
+# Quiz API Endpoints
+# ============================================================================
+
+@app.route("/quiz/generate", methods=["POST"])
+def generate_quiz():
+	"""
+	Generate a new quiz based on topic and optionally a learning plan.
+	
+	JSON body: {
+		"topic": "Python Basics",           # Required: quiz topic/title
+		"plan_text": "...",                 # Optional: learning plan text for context
+		"plan_reference": "plan-123",       # Optional: reference to a learning plan ID
+		"num_questions": 5,                 # Optional: number of questions (default 5)
+		"question_types": ["multiple_choice", "true_false", "short_answer"],  # Optional
+		"difficulty": "medium",             # Optional: easy, medium, hard
+		"model": "llama3:8b"                # Optional: Ollama model to use
+	}
+	
+	Returns the generated quiz with questions.
+	"""
+	# Auth required unless disabled
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		payload = request.get_json(force=True, silent=True) or {}
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id (server running with DISABLE_AUTH=true)"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	topic = payload.get("topic")
+	if not topic:
+		return jsonify({"error": "missing 'topic' in request body"}), 400
+	
+	try:
+		quiz = quiz_module.generate_quiz(
+			user_id=user_id,
+			topic=topic,
+			plan_text=payload.get("plan_text"),
+			plan_reference=payload.get("plan_reference"),
+			num_questions=int(payload.get("num_questions", 5)),
+			question_types=payload.get("question_types"),
+			difficulty=payload.get("difficulty", "medium"),
+			model=payload.get("model"),
+			temperature=float(payload.get("temperature", 0.3)),
+			max_tokens=int(payload.get("max_tokens", 2048))
+		)
+		
+		# Convert to dict for JSON response
+		result = quiz.model_dump()
+		# Convert datetime objects to ISO strings
+		if result.get("date_taken"):
+			result["date_taken"] = result["date_taken"].isoformat() if hasattr(result["date_taken"], "isoformat") else str(result["date_taken"])
+		if result.get("date_completed"):
+			result["date_completed"] = result["date_completed"].isoformat() if hasattr(result["date_completed"], "isoformat") else str(result["date_completed"])
+		
+		return jsonify(result), 201
+		
+	except Exception as e:
+		logger.exception("Quiz generation failed")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/quiz/list", methods=["GET"])
+def list_quizzes():
+	"""
+	List all quizzes for the authenticated user.
+	
+	Returns list of quiz metadata (id, title, score, status, dates).
+	"""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = request.args.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id query parameter"}), 400
+	
+	try:
+		quizzes = quiz_module.list_quizzes(user_id)
+		result = []
+		for q in quizzes:
+			item = q.model_dump()
+			if item.get("date_taken"):
+				item["date_taken"] = item["date_taken"].isoformat() if hasattr(item["date_taken"], "isoformat") else str(item["date_taken"])
+			if item.get("date_completed"):
+				item["date_completed"] = item["date_completed"].isoformat() if hasattr(item["date_completed"], "isoformat") else str(item["date_completed"])
+			result.append(item)
+		return jsonify(result), 200
+	except Exception as e:
+		logger.exception("Failed to list quizzes")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/quiz/<quiz_id>", methods=["GET"])
+def get_quiz(quiz_id: str):
+	"""
+	Get a specific quiz by ID.
+	
+	Returns the full quiz with questions (and user responses if any).
+	"""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = request.args.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id query parameter"}), 400
+	
+	try:
+		quiz = quiz_module.load_quiz(user_id, quiz_id)
+		if not quiz:
+			return jsonify({"error": "quiz not found"}), 404
+		
+		result = quiz.model_dump()
+		if result.get("date_taken"):
+			result["date_taken"] = result["date_taken"].isoformat() if hasattr(result["date_taken"], "isoformat") else str(result["date_taken"])
+		if result.get("date_completed"):
+			result["date_completed"] = result["date_completed"].isoformat() if hasattr(result["date_completed"], "isoformat") else str(result["date_completed"])
+		
+		return jsonify(result), 200
+	except Exception as e:
+		logger.exception("Failed to get quiz")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/quiz/<quiz_id>/answer", methods=["POST"])
+def submit_quiz_answer(quiz_id: str):
+	"""
+	Submit an answer for a quiz question.
+	
+	JSON body: {
+		"question_id": "q1",
+		"user_answer": "A. The correct option",
+		"time_taken_seconds": 30.5  # Optional
+	}
+	
+	Returns whether the answer is correct, the correct answer, explanation, and updated score.
+	"""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		payload = request.get_json(force=True, silent=True) or {}
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	question_id = payload.get("question_id")
+	user_answer = payload.get("user_answer")
+	
+	if not question_id or user_answer is None:
+		return jsonify({"error": "missing question_id or user_answer"}), 400
+	
+	try:
+		result = quiz_module.submit_quiz_answer(
+			user_id=user_id,
+			quiz_id=quiz_id,
+			question_id=question_id,
+			user_answer=user_answer,
+			time_taken_seconds=payload.get("time_taken_seconds")
+		)
+		return jsonify(result), 200
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to submit quiz answer")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/quiz/<quiz_id>/complete", methods=["POST"])
+def complete_quiz(quiz_id: str):
+	"""
+	Mark a quiz as completed.
+	
+	Returns the final quiz result with score.
+	"""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		payload = request.get_json(force=True, silent=True) or {}
+		user_id = payload.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id"}), 400
+	
+	try:
+		quiz = quiz_module.complete_quiz(user_id, quiz_id)
+		result = quiz.model_dump()
+		if result.get("date_taken"):
+			result["date_taken"] = result["date_taken"].isoformat() if hasattr(result["date_taken"], "isoformat") else str(result["date_taken"])
+		if result.get("date_completed"):
+			result["date_completed"] = result["date_completed"].isoformat() if hasattr(result["date_completed"], "isoformat") else str(result["date_completed"])
+		return jsonify(result), 200
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 404
+	except Exception as e:
+		logger.exception("Failed to complete quiz")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/quiz/<quiz_id>", methods=["DELETE"])
+def delete_quiz(quiz_id: str):
+	"""
+	Delete a quiz by ID.
+	"""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return jsonify({"error": "missing Authorization Bearer token"}), 401
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return jsonify({"error": "invalid or expired token"}), 401
+		user_id = claims.get("sub")
+	else:
+		user_id = request.args.get("user_id")
+		if not user_id:
+			return jsonify({"error": "missing user_id query parameter"}), 400
+	
+	try:
+		deleted = quiz_module.delete_quiz(user_id, quiz_id)
+		if deleted:
+			return jsonify({"status": "deleted", "quiz_id": quiz_id}), 200
+		else:
+			return jsonify({"error": "quiz not found"}), 404
+	except Exception as e:
+		logger.exception("Failed to delete quiz")
+		return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     # Simple dev server (for production use gunicorn/uwsgi)
