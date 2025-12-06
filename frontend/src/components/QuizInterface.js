@@ -200,26 +200,15 @@ function QuizInterface({ quiz, onComplete, onExit }) {
   }
 
   const isAnswered = answeredQuestions.has(currentQuestion.question_id);
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const answeredCount = answeredQuestions.size;
+  const correctCount = quizState.correct_answers || 0;
+  const scorePercent = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
   return (
     <div className="quiz-interface two-column">
+      {/* Left Column: 70% - Quiz Questions */}
       <div className="quiz-left scroll-pane">
-        {/* Header */}
-        <div className="quiz-header">
-          <h2 className="quiz-title">{quizState.quiz_title}</h2>
-          <div className="quiz-progress">
-            <div className="progress-bar">
-              <div 
-                className="progress-bar-fill" 
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span className="progress-text">
-              {currentQuestionIndex + 1} / {questions.length}
-            </span>
-          </div>
-        </div>
+        {/* Question Card */}
 
         {/* Question Card */}
         <div className="question-card">
@@ -407,19 +396,104 @@ function QuizInterface({ quiz, onComplete, onExit }) {
         </div>
       </div>
 
-      {/* Right column: quiz info and global actions (sticky) */}
+      {/* Right column: 30% - Score Meter, Navigation, Progress */}
       <aside className="quiz-right">
         <div className="quiz-info-panel">
-          <h3>Quiz Info</h3>
-          <div className="info-row"><strong>Topic:</strong> {quizState.quiz_title}</div>
-          <div className="info-row"><strong>Questions:</strong> {questions.length}</div>
-          <div className="info-row"><strong>Difficulty:</strong> {quizState.difficulty || 'Medium'}</div>
-          <div className="info-row"><strong>Score:</strong> {quizState.score ? `${Math.round(quizState.score)}%` : '—'}</div>
+          {/* Quiz Title & Topic */}
+          <h3 className="panel-title">{quizState.quiz_title}</h3>
+          
+          {/* Score Meter */}
+          <div className="score-meter">
+            <svg className="score-meter-svg" viewBox="0 0 120 120">
+              {/* Background circle */}
+              <circle
+                className="meter-background"
+                cx="60"
+                cy="60"
+                r="50"
+                fill="none"
+                strokeWidth="10"
+              />
+              {/* Progress arc */}
+              <circle
+                className="meter-progress"
+                cx="60"
+                cy="60"
+                r="50"
+                fill="none"
+                strokeWidth="10"
+                strokeLinecap="round"
+                style={{
+                  strokeDasharray: `${(scorePercent / 100) * 314} 314`,
+                  transform: 'rotate(-90deg)',
+                  transformOrigin: '60px 60px'
+                }}
+              />
+              {/* Score text */}
+              <text x="60" y="55" className="meter-score-text" textAnchor="middle">
+                {scorePercent}%
+              </text>
+              <text x="60" y="75" className="meter-score-label" textAnchor="middle">
+                Score
+              </text>
+            </svg>
+          </div>
 
+    
+
+          {/* Stats Summary */}
+          <div className="quiz-stats-mini">
+            <div className="stat-mini">
+              <span className="stat-mini-value correct">{correctCount}</span>
+              <span className="stat-mini-label">Correct</span>
+            </div>
+            <div className="stat-mini">
+              <span className="stat-mini-value">{answeredCount}</span>
+              <span className="stat-mini-label">Answered</span>
+            </div>
+            <div className="stat-mini">
+              <span className="stat-mini-value">{questions.length}</span>
+              <span className="stat-mini-label">Total</span>
+            </div>
+          </div>
+
+          {/* Question Navigator Pills */}
+          <div className="question-pills">
+            <div className="pills-label">Questions</div>
+            <div className="pills-grid">
+              {questions.map((q, idx) => {
+                const isCurrentPill = idx === currentQuestionIndex;
+                const isAnsweredPill = answeredQuestions.has(q.question_id);
+                const response = quizState.user_responses?.find(r => r.question_id === q.question_id);
+                const isCorrectPill = response?.is_correct;
+                
+                let pillClass = 'question-pill';
+                if (isCurrentPill) pillClass += ' current';
+                if (isAnsweredPill) {
+                  pillClass += isCorrectPill ? ' correct' : ' incorrect';
+                }
+                
+                return (
+                  <button
+                    key={q.question_id}
+                    className={pillClass}
+                    onClick={() => setCurrentQuestionIndex(idx)}
+                    title={`Question ${idx + 1}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+
+
+          {/* Navigation Actions */}
           <div className="panel-actions">
             {!isAnswered && (
               <button
-                className="btn btn-primary"
+                className="btn btn-primary btn-full"
                 onClick={handleSubmitAnswer}
                 disabled={!selectedAnswer || isSubmitting}
               >
@@ -428,14 +502,20 @@ function QuizInterface({ quiz, onComplete, onExit }) {
             )}
 
             {isAnswered && !isLastQuestion && (
-              <button className="btn btn-primary" onClick={handleNextQuestion}>Next →</button>
+              <button className="btn btn-primary btn-full" onClick={handleNextQuestion}>
+                Next Question →
+              </button>
             )}
 
             {isAnswered && isLastQuestion && (
-              <button className="btn btn-success" onClick={handleFinishQuiz}>Finish Quiz</button>
+              <button className="btn btn-success btn-full" onClick={handleFinishQuiz}>
+                Finish Quiz ✓
+              </button>
             )}
 
-            <button className="btn btn-secondary" onClick={onExit}>Exit</button>
+            <button className="btn btn-secondary btn-full" onClick={onExit}>
+              Exit Quiz
+            </button>
           </div>
         </div>
       </aside>

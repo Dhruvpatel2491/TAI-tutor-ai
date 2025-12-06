@@ -11,17 +11,32 @@
    ============================================================================ */
 
 .quiz-page {
-  padding: 1.5rem;
   max-width: var(--window-width);
   margin: 0 auto;
-}
-
-/* Make the page full height and avoid the main page scrolling; inner sections will scroll */
-.quiz-page {
-  height: 80vh;
+  height: calc(100vh - 80px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Make the page full height and no scrollbar */
+.quiz-page {
+  width: 80vw;
+  height: 100%;
+  min-height: 60vh;
+  max-height: 80vh;
+}
+
+/* Hide scrollbar but allow scrolling */
+.quiz-page::-webkit-scrollbar,
+.quiz-interface::-webkit-scrollbar {
+  display: none;
+}
+
+.quiz-page,
+.quiz-interface {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Scrollable inner pane */
@@ -44,11 +59,12 @@
 /* Dashboard two-column layout */
 .quiz-page.dashboard-view .quiz-dashboard {
   display: flex;
+  height: 50vh;
   gap: 1.5rem;
   width: 100%;
   max-width: var(--window-width);
   flex: 1;
-  min-height: 0;
+  max-height: 100%;
 }
 
 .dashboard-left {
@@ -123,6 +139,7 @@
   border: 1px solid var(--color-border, #e0e0e0);
   overflow: hidden;
   min-height: 0;
+  max-height: 60vh;
 }
 
 .quiz-list.scroll-pane {
@@ -445,12 +462,29 @@
   height: 16px;
   border-width: 2px;
   margin-right: 0.5rem;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border, #e0e0e0);
+  border-top-color: var(--color-primary, #007bff);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner.small {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
 }
 
 .spinner.large {
-  width: 56px;
-  height: 56px;
-  border-width: 4px;
+  width: 64px;
+  height: 64px;
+  border-width: 5px;
 }
 
 /* Page overlay while generating a quiz */
@@ -460,19 +494,36 @@
   top: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  backdrop-filter: blur(2px);
 }
 
 .overlay-spinner {
-  background: rgba(255,255,255,0.95);
-  padding: 1.25rem 1.5rem;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  padding: 2rem 2.5rem;
+  border-radius: 16px;
   text-align: center;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.overlay-spinner .spinner {
+  width: 56px;
+  height: 56px;
+  border-width: 4px;
+}
+
+.overlay-spinner div:last-child {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #333);
 }
 
 /* ============================================================================
@@ -480,8 +531,8 @@
    ============================================================================ */
 
 .quiz-interface {
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 80vw;
+  /* margin: 0 auto; */
 }
 
 .quiz-header {
@@ -532,49 +583,256 @@
   margin-bottom: 1.5rem;
 }
 
-/* Quiz interface two-column layout */
+/* Quiz interface two-column layout - 70% / 30% */
 .quiz-interface.two-column {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   align-items: flex-start;
-  min-height: calc(100vh - 120px);
+  height: 100%;
+  overflow: hidden;
 }
 
 .quiz-left {
-  flex: 1 1 0;
-  min-width: 0; /* allow children to shrink properly */
-  max-width: 100%;
+flex-grow: 3;  
+overflow-y: auto;
+padding-right: 5px;
+}
+
+/* Hide scrollbar in quiz-left */
+.quiz-left::-webkit-scrollbar {
+  width: 4px;
+}
+
+.quiz-left::-webkit-scrollbar-thumb {
+  background: var(--color-border, #ddd);
+  border-radius: 2px;
+}
+
+.quiz-left::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .quiz-right {
-  width: 320px;
-  flex-shrink: 0;
-  position: relative;
+  flex: 0 0 30%;
+  max-width: 30%;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
 }
 
 .quiz-right .quiz-info-panel {
-  position: sticky;
-  top: 1.5rem;
-  background: var(--color-bg-primary,#fff);
-  border: 1px solid var(--color-border,#e0e0e0);
-  padding: 1rem;
-  border-radius: 8px;
+  background: var(--color-bg-primary, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  padding: 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.quiz-info-panel h3 {
-  margin-top: 0;
+.quiz-info-panel .panel-title {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #333);
+  text-align: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
 }
 
-.info-row {
-  margin: 0.5rem 0;
-  font-size: 0.95rem;
+/* ============================================================================
+   Score Meter (Circular Progress)
+   ============================================================================ */
+
+.score-meter {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
 }
+
+.score-meter-svg {
+  width: 120px;
+  height: 120px;
+}
+
+.meter-background {
+  stroke: var(--color-bg-secondary, #e9ecef);
+}
+
+.meter-progress {
+  stroke: var(--color-primary, #007bff);
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.meter-score-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  fill: var(--color-text-primary, #333);
+}
+
+.meter-score-label {
+  font-size: 0.7rem;
+  fill: var(--color-text-secondary, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   Progress Section
+   ============================================================================ */
+
+.quiz-progress-section {
+  margin: 1rem 0;
+}
+
+.progress-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  margin-bottom: 0.5rem;
+}
+/* 
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-bar-container .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-secondary, #e0e0e0);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-container .progress-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  white-space: nowrap;
+} */
+
+/* ============================================================================
+   Mini Stats Row
+   ============================================================================ */
+
+.quiz-stats-mini {
+  display: flex;
+  justify-content: space-around;
+  padding: 0.75rem 0;
+  margin: 0.75rem 0;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+}
+
+.stat-mini {
+  text-align: center;
+}
+
+.stat-mini-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #333);
+}
+
+.stat-mini-value.correct {
+  color: #5cb85c;
+}
+
+.stat-mini-label {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ============================================================================
+   Question Navigator Pills
+   ============================================================================ */
+
+.question-pills {
+  margin: 1rem 0;
+}
+
+.pills-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  margin-bottom: 0.5rem;
+}
+
+.pills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.question-pill {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--color-border, #ddd);
+  border-radius: 6px;
+  background: var(--color-bg-primary, #fff);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.question-pill:hover {
+  border-color: var(--color-primary, #007bff);
+  color: var(--color-primary, #007bff);
+}
+
+.question-pill.current {
+  background: var(--color-primary, #007bff);
+  border-color: var(--color-primary, #007bff);
+  color: white;
+}
+
+.question-pill.correct {
+  background: rgba(92, 184, 92, 0.15);
+  border-color: #5cb85c;
+  color: #5cb85c;
+}
+
+.question-pill.incorrect {
+  background: rgba(217, 83, 79, 0.15);
+  border-color: #d9534f;
+  color: #d9534f;
+}
+
+.question-pill.current.correct,
+.question-pill.current.incorrect {
+  color: white;
+}
+
+.question-pill.current.correct {
+  background: #5cb85c;
+}
+
+.question-pill.current.incorrect {
+  background: #d9534f;
+}
+
+/* ============================================================================
+   Panel Actions
+   ============================================================================ */
 
 .panel-actions {
-  display:flex;
-  gap:0.5rem;
+  display: flex;
+  gap: 0.5rem;
   flex-direction: column;
   margin-top: 1rem;
+}
+
+.btn-full {
+  width: 100%;
+  justify-content: center;
 }
 
 .question-number {
@@ -903,16 +1161,22 @@
   justify-content: center;
   padding: 3rem;
   color: var(--color-text-secondary, #666);
+  min-height: 200px;
 }
 
 .quiz-loading .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-border, #e0e0e0);
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--color-border, #e0e0e0);
   border-top-color: var(--color-primary, #007bff);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
   margin-bottom: 1rem;
+}
+
+.quiz-loading p {
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 @keyframes spin {
