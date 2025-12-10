@@ -9,6 +9,8 @@ This file gives targeted, repo-specific guidance so an AI coding agent can be pr
   - Indexing/ingestion: `backend/vector_store_gen.py` builds and persists the vector index in `vector_index_store/` (`docstore.json`, `embeddings_meta.json`, `vector_index_store.json`). Parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` live here; tree-sitter support exists for code parsing.
   - Frontend: React app in `frontend/` calls the backend HTTP APIs. UI components live under `frontend/src/components` and services under `frontend/src/services`.
 
+  - Chat history / sessions: a local, JSON-backed chat history feature stores per-user chat sessions under `user_data/chats/` (one file per session). Backend helpers live in `backend/chat_manager.py` and the frontend uses `frontend/src/services/chatService.js` to call chat endpoints. Server endpoints for chats were added (e.g., create/list/get/add-message/delete/archive/update title) and are useful for persisting conversation state.
+
 - Quick run & test (concrete)
   - Backend (dev): from repo root: `cd backend && python server.py` (port can be overridden with env var `BACKEND_PORT`).
   - Frontend: `cd frontend && npm install && npm start` (uses `frontend/src/config.js` for base URL overrides).
@@ -18,6 +20,7 @@ This file gives targeted, repo-specific guidance so an AI coding agent can be pr
   - LLM / embedding defaults: edit constants in `backend/server.py` (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`, `DEFAULT_*`). Prefer env var overrides.
   - Index build: change parsing/chunking in `backend/vector_store_gen.py` (see `get_or_create_index()` and `indexing` dict parameters: `parser`, `chunk_size`, `chunk_overlap`).
   - Embedding metadata: persist updates using `save_embedding_metadata()`; the index store files in `vector_index_store/` are authoritative for persisted state.
+  - Chat storage and session lifecycle: `backend/chat_manager.py` is the source of truth for chat session CRUD and persisted files under `user_data/chats/`. When modifying chat behavior, update that module and ensure atomic writes (it uses temp-file + replace).
 
 - Conventions & patterns to follow
   - Parsers: keep I/O deterministic and local to `vector_store_gen.py`; add small helper functions (e.g., `extract_text_from_pdf`) in the same file.
@@ -37,4 +40,7 @@ This file gives targeted, repo-specific guidance so an AI coding agent can be pr
   - `backend/vector_store_gen.py` — ingestion, parsers, index creation.
   - `vector_index_store/` — persisted index artifacts to inspect after a rebuild.
   - `frontend/src/services/botService.js` and `frontend/src/components/ChatbotInterface.js` — show how the frontend calls the backend and shapes requests.
+  - `backend/chat_manager.py` — chat session management, file persistence location and helpers.
+  - `frontend/src/services/chatService.js` and `frontend/src/components/ChatbotInterface.js` — client-side chat history calls, sidebar UI and chat_id wiring.
+  - `docs/CHAT_HISTORY.md` — design and API details for the Chat History feature (useful when changing endpoints or data shapes).
 

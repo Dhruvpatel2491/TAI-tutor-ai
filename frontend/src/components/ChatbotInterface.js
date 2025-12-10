@@ -4,6 +4,7 @@ import FormattedMessage from './FormattedMessage';
 import { formatBotResponse } from '../utils/messageFormatter';
 import { DEFAULT_BACKEND_URL } from '../config';
 import { apiGet, apiPost } from '../services/http';
+import chatService from '../services/chatService';
 
 // Constants
 const INITIAL_MESSAGE = {
@@ -78,6 +79,13 @@ const ChatbotInterface = () => {
   // State - Settings Panel
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // State - Chat History Sidebar
+  const [showChatSidebar, setShowChatSidebar] = useState(true);
+  const [chatList, setChatList] = useState([]);
+  const [currentChatId, setCurrentChatId] = useState(null);
+  const [loadingChats, setLoadingChats] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
   // Refs
   const messagesEndRef = useRef(null);
 
@@ -96,6 +104,8 @@ const ChatbotInterface = () => {
   // Clear chat history
   const handleClearChat = useCallback(() => {
     setMessages([INITIAL_MESSAGE]);
+    setCurrentChatId(null);
+    setInputValue('');
   }, []);
 
   // Export chat history as text file
@@ -119,6 +129,116 @@ const ChatbotInterface = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [messages]);
+
+  // Load chat list from backend
+  const loadChatList = useCallback(async () => {
+    setLoadingChats(true);
+    try {
+      const result = await chatService.listChats({
+        includeArchived: showArchived,
+        backendURL
+      });
+      setChatList(result.chats || []);
+    } catch (error) {
+      console.error('Failed to load chat list:', error);
+    } finally {
+      setLoadingChats(false);
+    }
+  }, [backendURL, showArchived]);
+
+  // Load a specific chat conversation
+  const loadChat = useCallback(async (chatId) => {
+    if (!chatId) return;
+    
+    try {
+      const chat = await chatService.getChat(chatId, { backendURL });
+      setCurrentChatId(chatId);
+      
+      // Convert backend messages to frontend format
+      const loadedMessages = chat.messages.map((msg, index) => ({
+        id: index + 2, // Start from 2 (1 is reserved for initial message)
+        text: msg.content,
+        sender: msg.role === 'user' ? 'user' : 'bot',
+        timestamp: new Date(msg.timestamp),
+        formatted: msg.role === 'assistant' ? formatBotResponse(msg.content) : null
+      }));
+      
+      // Prepend the initial greeting message
+      setMessages([INITIAL_MESSAGE, ...loadedMessages]);
+    } catch (error) {
+      console.error('Failed to load chat:', error);
+      // If chat not found, start fresh
+      setCurrentChatId(null);
+      setMessages([INITIAL_MESSAGE]);
+    }
+  }, [backendURL]);
+
+  // Start a new chat conversation
+  const handleNewChat = useCallback(async () => {
+    setCurrentChatId(null);
+    setMessages([INITIAL_MESSAGE]);
+    setInputValue('');
+    
+    // Refresh the chat list
+    loadChatList();
+  }, [loadChatList]);
+
+  // Delete a chat conversation
+  const handleDeleteChat = useCallback(async (chatId, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    if (!window.confirm('Are you sure you want to delete this conversation?')) {
+      return;
+    }
+    
+    try {
+      await chatService.deleteChat(chatId, { backendURL });
+      
+      // If we deleted the current chat, start a new one
+      if (chatId === currentChatId) {
+        handleNewChat();
+      }
+      
+      // Refresh the chat list
+      loadChatList();
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+    }
+  }, [backendURL, currentChatId, handleNewChat, loadChatList]);
+
+  // Archive/unarchive a chat conversation
+  const handleArchiveChat = useCallback(async (chatId, archive, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    try {
+      await chatService.archiveChat(chatId, { archive, backendURL });
+      loadChatList();
+    } catch (error) {
+      console.error('Failed to archive chat:', error);
+    }
+  }, [backendURL, loadChatList]);
+
+  // Format date for display in sidebar
+  const formatChatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
 
   // Check backend connection
   const checkBackendConnection = useCallback(async () => {
@@ -159,6 +279,13 @@ const ChatbotInterface = () => {
     return () => clearInterval(interval);
   }, [checkBackendConnection]);
 
+  // Effects - Load chat list on mount and when backend URL changes
+  useEffect(() => {
+    if (backendStatus === STATUS_CONNECTED) {
+      loadChatList();
+    }
+  }, [backendStatus, loadChatList]);
+
   // Effects - Auto-scroll to bottom
   useEffect(() => {
     scrollToBottom();
@@ -184,6 +311,22 @@ const ChatbotInterface = () => {
     setInputValue('');
     setLoading(true);
 
+    // If no current chat, create one first
+    let activeChatId = currentChatId;
+    if (!activeChatId) {
+      try {
+        const newChat = await chatService.createChat({ 
+          title: questionText.substring(0, 50),
+          backendURL 
+        });
+        activeChatId = newChat.chat_id;
+        setCurrentChatId(activeChatId);
+      } catch (error) {
+        console.error('Failed to create chat session:', error);
+        // Continue without chat persistence
+      }
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT);
@@ -201,6 +344,7 @@ const ChatbotInterface = () => {
         response_type: responseType,
         length: responseLength,
         conversation_history: conversationHistory,
+        chat_id: activeChatId,
         rebuild: false
       });
       clearTimeout(timeoutId);
@@ -217,6 +361,27 @@ const ChatbotInterface = () => {
           cached: data.cached || false
         };
         setMessages(prev => [...prev, botMessage]);
+
+        // Save messages to chat history
+        if (activeChatId) {
+          try {
+            await chatService.addMessage(activeChatId, {
+              role: 'user',
+              content: questionText,
+              backendURL
+            });
+            await chatService.addMessage(activeChatId, {
+              role: 'assistant',
+              content: data.answer,
+              metadata: { cached: data.cached || false },
+              backendURL
+            });
+            // Refresh chat list to update timestamps
+            loadChatList();
+          } catch (error) {
+            console.error('Failed to save messages to chat history:', error);
+          }
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         const errorMessage = {
@@ -272,12 +437,99 @@ const ChatbotInterface = () => {
     : (backendStatus === STATUS_DISCONNECTED ? 'Disconnected' : 'Checking...');
 
   return (    <div className='chat-combined' style={{ display: "flex" }}>
+    {/* Chat History Sidebar */}
+    <aside className={`chat-sidebar ${showChatSidebar ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <div className="sidebar-header">
+        <h3>💬 Conversations</h3>
+        {/* Icon shown in collapsed state and desktop stacked layout */}
+        <span className="sidebar-icon" aria-hidden="true">💬</span>
+        <button
+          className="sidebar-toggle-btn"
+          onClick={() => setShowChatSidebar(!showChatSidebar)}
+          title={showChatSidebar ? "Hide sidebar" : "Show sidebar"}
+        >
+          <span className="sidebar-toggle-arrow">{showChatSidebar ? '◀' : '▶'}</span>
+        </button>
+      </div>
+
+      {showChatSidebar && (
+        <>
+          <button
+            className="new-chat-btn"
+            onClick={handleNewChat}
+            title="Start a new conversation"
+          >
+            ➕ New Chat
+          </button>
+
+          <div className="sidebar-filters">
+            <label className="archive-toggle">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              Show archived
+            </label>
+          </div>
+
+          <div className="chat-list">
+            {loadingChats ? (
+              <div className="chat-list-loading">Loading...</div>
+            ) : chatList.length === 0 ? (
+              <div className="chat-list-empty">No conversations yet</div>
+            ) : (
+              chatList.map((chat) => (
+                <div
+                  key={chat.chat_id}
+                  className={`chat-list-item ${currentChatId === chat.chat_id ? 'chat-list-item-active' : ''} ${chat.archived ? 'chat-list-item-archived' : ''}`}
+                  onClick={() => loadChat(chat.chat_id)}
+                >
+                  <div className="chat-list-item-content">
+                    <span className="chat-list-item-title" title={chat.title}>
+                      {chat.title || 'Untitled'}
+                    </span>
+                    <span className="chat-list-item-meta">
+                      {formatChatDate(chat.updated_at)} • {chat.message_count} msgs
+                    </span>
+                  </div>
+                  <div className="chat-list-item-actions">
+                    <button
+                      className="chat-item-action-btn"
+                      onClick={(e) => handleArchiveChat(chat.chat_id, !chat.archived, e)}
+                      title={chat.archived ? 'Unarchive' : 'Archive'}
+                    >
+                      {chat.archived ? '📤' : '📥'}
+                    </button>
+                    <button
+                      className="chat-item-action-btn chat-item-delete-btn"
+                      onClick={(e) => handleDeleteChat(chat.chat_id, e)}
+                      title="Delete conversation"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </aside>
+
     <div className="chatbot-wrapper">
       {/* Main Chatbot Container */}
       <div className="chatbot-container">
         {/* Top: header (left) and backend/status (right) */}
         <div className="chatbot-top">
           <div className="chatbot-header-left">
+            <button
+              className="sidebar-mobile-toggle"
+              onClick={() => setShowChatSidebar(!showChatSidebar)}
+              title="Toggle conversation history"
+            >
+              ☰
+            </button>
             <h1>TAI Tutor AI</h1>
             <p>AI-Powered Learning Assistant</p>
           </div>

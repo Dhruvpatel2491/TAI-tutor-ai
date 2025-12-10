@@ -60,6 +60,12 @@ If you don't have Ollama available during development or CI you can set the envi
 - Local LLM + embedding via Ollama: uses LlamaIndex wrapper for retrieval and query flows.
 - Hint vs direct answer modes: prompt templates are designed to support both hint-first tutoring and direct answers (see `backend/vector_store_gen.py` and prompt hooks).
 - Persisted index and incremental ingestion: `embeddings_meta.json` keeps track of which files were already embedded to avoid reprocessing unchanged files.
+- **Chat History**: Full conversation persistence with sidebar navigation, allowing users to:
+  - View and load past conversations
+  - Start new chat sessions
+  - Delete or archive old conversations
+  - See conversation previews with titles and timestamps
+  - See [docs/CHAT_HISTORY.md](docs/CHAT_HISTORY.md) for detailed documentation
 
 ## Environment variables (common)
 

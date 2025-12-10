@@ -946,8 +946,297 @@ def auth_login():
 	return jsonify({"token": token}), 200
 
 
+### Chat History API
+# Import chat_manager module
+try:
+	from backend import chat_manager
+except Exception:
+	import chat_manager
+
+
+def _get_user_id_from_request():
+	"""Extract user_id from request auth token or return None if auth is disabled."""
+	if not is_auth_disabled():
+		auth_header = request.headers.get("Authorization")
+		token = auth.extract_bearer_token(auth_header)
+		if not token:
+			return None, (jsonify({"error": "missing Authorization Bearer token"}), 401)
+		claims = auth.verify_jwt(token)
+		if not claims:
+			return None, (jsonify({"error": "invalid or expired token"}), 401)
+		return claims.get("sub"), None
+	else:
+		# When auth is disabled, try to get user_id from payload or query params
+		payload = request.get_json(force=True, silent=True) or {}
+		user_id = payload.get("user_id") or request.args.get("user_id")
+		if not user_id:
+			# Use default dev user
+			user_info = get_user_from_request(request)
+			user_id = user_info.get("user_id") or user_info.get("default_dev_user")
+		return user_id, None
+
+
+@app.route("/chats", methods=["POST"])
+def create_chat_session():
+	"""
+	Create a new chat session.
+	
+	POST /chats
+	JSON body: {
+		"title": "optional title"
+	}
+	
+	Response: {
+		"chat_id": "...",
+		"title": "...",
+		"created_at": "...",
+		"updated_at": "...",
+		"messages": [],
+		"archived": false
+	}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	title = payload.get("title")
+	
+	try:
+		session = chat_manager.get_chat_manager().create_chat(user_id=user_id, title=title)
+		if session:
+			return jsonify(session.to_dict()), 201
+		return jsonify({"error": "failed to create chat"}), 500
+	except Exception as e:
+		logger.exception("Failed to create chat")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats", methods=["GET"])
+def list_chats():
+	"""
+	List all chat sessions for the current user.
+	
+	GET /chats?include_archived=false&limit=50&offset=0
+	
+	Response: {
+		"chats": [
+			{
+				"chat_id": "...",
+				"title": "...",
+				"created_at": "...",
+				"updated_at": "...",
+				"message_count": 5,
+				"archived": false
+			}
+		]
+	}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	include_archived = request.args.get("include_archived", "false").lower() in ("true", "1", "yes")
+	try:
+		limit = int(request.args.get("limit", "50"))
+	except ValueError:
+		limit = 50
+	try:
+		offset = int(request.args.get("offset", "0"))
+	except ValueError:
+		offset = 0
+	
+	try:
+		chats = chat_manager.get_chat_manager().list_chats(
+			user_id=user_id,
+			include_archived=include_archived,
+			limit=limit,
+			offset=offset
+		)
+		return jsonify({"chats": chats}), 200
+	except Exception as e:
+		logger.exception("Failed to list chats")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats/<chat_id>", methods=["GET"])
+def get_chat_session(chat_id: str):
+	"""
+	Get a specific chat session with all messages.
+	
+	GET /chats/<chat_id>
+	
+	Response: {
+		"chat_id": "...",
+		"title": "...",
+		"created_at": "...",
+		"updated_at": "...",
+		"messages": [...],
+		"archived": false
+	}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	try:
+		session = chat_manager.get_chat_manager().get_chat(user_id, chat_id)
+		if session:
+			return jsonify(session.to_dict()), 200
+		return jsonify({"error": "chat not found"}), 404
+	except Exception as e:
+		logger.exception("Failed to get chat")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats/<chat_id>/messages", methods=["POST"])
+def add_chat_message(chat_id: str):
+	"""
+	Add a message to an existing chat session.
+	
+	POST /chats/<chat_id>/messages
+	JSON body: {
+		"role": "user" | "assistant",
+		"content": "message text",
+		"metadata": {} (optional)
+	}
+	
+	Response: {
+		"message_id": "...",
+		"role": "...",
+		"content": "...",
+		"timestamp": "...",
+		"metadata": {}
+	}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	role = payload.get("role")
+	content = payload.get("content")
+	metadata = payload.get("metadata", {})
+	
+	if not role or not content:
+		return jsonify({"error": "missing 'role' or 'content'"}), 400
+	
+	if role not in ("user", "assistant"):
+		return jsonify({"error": "role must be 'user' or 'assistant'"}), 400
+	
+	try:
+		message = chat_manager.get_chat_manager().add_message(
+			user_id=user_id,
+			chat_id=chat_id,
+			role=role,
+			content=content,
+			metadata=metadata
+		)
+		if message:
+			return jsonify(message.to_dict()), 201
+		return jsonify({"error": "chat not found or failed to add message"}), 404
+	except Exception as e:
+		logger.exception("Failed to add message to chat")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats/<chat_id>", methods=["DELETE"])
+def delete_chat_session(chat_id: str):
+	"""
+	Delete a chat session.
+	
+	DELETE /chats/<chat_id>
+	
+	Response: { "status": "deleted" }
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	try:
+		deleted = chat_manager.get_chat_manager().delete_chat(user_id, chat_id)
+		if deleted:
+			return jsonify({"status": "deleted", "chat_id": chat_id}), 200
+		return jsonify({"error": "chat not found"}), 404
+	except Exception as e:
+		logger.exception("Failed to delete chat")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats/<chat_id>/archive", methods=["POST"])
+def archive_chat_session(chat_id: str):
+	"""
+	Archive or unarchive a chat session.
+	
+	POST /chats/<chat_id>/archive
+	JSON body: { "archive": true | false }
+	
+	Response: { "status": "archived" | "unarchived" }
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	archive = payload.get("archive", True)
+	
+	try:
+		success = chat_manager.get_chat_manager().archive_chat(user_id, chat_id, archive)
+		if success:
+			status = "archived" if archive else "unarchived"
+			return jsonify({"status": status, "chat_id": chat_id}), 200
+		return jsonify({"error": "chat not found"}), 404
+	except Exception as e:
+		logger.exception("Failed to archive chat")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chats/<chat_id>/title", methods=["PUT"])
+def update_chat_session_title(chat_id: str):
+	"""
+	Update the title of a chat session.
+	
+	PUT /chats/<chat_id>/title
+	JSON body: { "title": "new title" }
+	
+	Response: { "status": "updated" }
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	
+	payload = request.get_json(force=True, silent=True) or {}
+	title = payload.get("title")
+	
+	if not title:
+		return jsonify({"error": "missing 'title'"}), 400
+	
+	try:
+		success = chat_manager.get_chat_manager().update_chat_title(user_id, chat_id, title)
+		if success:
+			return jsonify({"status": "updated", "chat_id": chat_id, "title": title}), 200
+		return jsonify({"error": "chat not found"}), 404
+	except Exception as e:
+		logger.exception("Failed to update chat title")
+		return jsonify({"error": str(e)}), 500
+
+
 ### Planner API (simple, no-auth endpoints for prototyping)
-@app.route("/plans", methods=["POST"])  # create
+@app.route("/plans", methods=["POST"])  # create_plan
 def create_plan():
 	# Auth required unless disabled via env var
 	if not is_auth_disabled():
