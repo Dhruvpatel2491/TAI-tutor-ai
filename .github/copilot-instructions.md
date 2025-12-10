@@ -6,7 +6,7 @@ This file gives targeted, repo-specific guidance so an AI coding agent can be pr
 - Big picture
   - Backend: Flask app at `backend/server.py`. Key endpoints: `/health`, `/query`, `/query_v2`, `/rebuild`.
     The server wires LlamaIndex (index/query) + local Ollama LLMs for responses.
-  - Indexing/ingestion: `backend/vector_store_gen.py` builds and persists the vector index in `vector_vector_index_store/` (`docstore.json`, `embeddings_meta.json`, `vector_index_store.json`). Parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` live here; tree-sitter support exists for code parsing.
+  - Indexing/ingestion: `backend/vector_store_gen.py` builds and persists the vector index in `vector_index_store/` (`docstore.json`, `embeddings_meta.json`, `vector_index_store.json`). Parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` live here; tree-sitter support exists for code parsing.
   - Frontend: React app in `frontend/` calls the backend HTTP APIs. UI components live under `frontend/src/components` and services under `frontend/src/services`.
 
 - Quick run & test (concrete)

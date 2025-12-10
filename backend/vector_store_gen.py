@@ -28,7 +28,7 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.settings import Settings
 
 # ----------------------------- CONFIG -----------------------------
-INDEX_DIR = "./vector_vector_index_store"
+INDEX_DIR = "./vector_index_store"
 DATA_DIR = "./course-data/"
 
 # If you want to require a specific file for the persisted index, add it here.

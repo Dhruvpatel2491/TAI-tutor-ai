@@ -50,7 +50,7 @@ If you don't have Ollama available during development or CI you can set the envi
 
 - `backend/server.py` — Flask backend exposing `/health`, `/query`, `/query_v2`, and `/rebuild` endpoints. Constants at the top (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`) control default models and timeouts.
 - `backend/vector_store_gen.py` — indexing and ingestion logic (parsers for PDFs, PPTX, notebooks, Python code, and other formats). Contains `get_or_create_index()` and document loaders.
-- `backend/vector_vector_index_store/` — persisted index and metadata (relative to the `backend/` folder). Expected files include `docstore.json` and `embeddings_meta.json`.
+- `backend/vector_index_store/` — persisted index and metadata (relative to the `backend/` folder). Expected files include `docstore.json` and `embeddings_meta.json`.
 - `backend/course-data/` and `data/base-data/` — source documents used to build the index in development and for a larger corpus, respectively.
 - `frontend/` — React app that communicates with the backend. Key components: `components/ChatbotInterface.js`, `components/PlannerPanel.js`.
 

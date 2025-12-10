@@ -4,7 +4,7 @@
 
 backend/__pycache__
 backend_test/__pycache__
-backend/vector_vector_index_store
+backend/vector_index_store/*
 
 test/__pycache__
 
@@ -15,5 +15,6 @@ data/base-data/CSC15_F25/LongAssignment2/__pycache__/functions.cpython-311.pyc
 
 z-script
 .github/prompts
+
 
 
