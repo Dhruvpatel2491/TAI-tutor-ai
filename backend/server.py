@@ -113,7 +113,7 @@ logger = logging.getLogger("backend.api")
 
 # Configuration via env vars with sensible defaults
 INDEX_DIR 	= "./vector_index_store"
-DATA_DIR 	= "./trial-data"
+DATA_DIR 	= "./course-data"
 # directory where embedding definition lives (model.txt or config.json)
 EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")
 OLLAMA_LLM = os.environ.get("OLLAMA_LLM", "llama3:8b")
