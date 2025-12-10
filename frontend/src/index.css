@@ -24,7 +24,7 @@ body {
 
 /* Simple UI utility styles used across pages/components */
 .container {
-  max-width: 70vw;
+  max-width: 85vw;
   margin: 0 auto;
   /* reduced padding to tighten space under header */
   padding: 8px;

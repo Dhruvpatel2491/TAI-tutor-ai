@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { DEFAULT_BACKEND_URL } from "../config";
 import { apiGet, apiPost } from "../services/http";
 import { authService } from "../services/authService";
+import { renderPlanMarkdown } from "../utils/planFormatter";
 
 function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [token, setToken] = useState("");
@@ -18,16 +19,46 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   // default_dev_user or passing user_id when auth is disabled.
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  // view can be: 'dashboard' | 'new' | 'saved' | 'edit' | 'preview'
+  const [view, setView] = useState("dashboard");
+  // when viewing a saved plan, track whether user is editing it
+  const [isEditingSaved, setIsEditingSaved] = useState(false);
+  // (legacy saved view variant removed; preview/edit flow used instead)
+  const [hasUnsavedGeneratedPlan, setHasUnsavedGeneratedPlan] = useState(false);
 
-  // When a generated plan arrives and the user is in the editor (isTyping),
+  // Track unsaved changes for cancel confirmation
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const prevPlanTextRef = useRef("");
+
+  // When a generated plan arrives and the user is in the editor (new/saved),
   // copy it into the editable planText field so the textarea shows the
   // generated content and becomes editable immediately.
   useEffect(() => {
-    if (generatedPlan && isTyping && !planText) {
+    if (generatedPlan && (isEditingSaved || view === "new")) {
       setPlanText(generatedPlan);
+      setHasUnsavedChanges(true);
     }
-  }, [generatedPlan, isTyping, planText]);
+  }, [generatedPlan, isEditingSaved, view]);
+
+  // Track unsaved changes when planText changes
+  useEffect(() => {
+    if (view === "edit" || view === "new") {
+      setHasUnsavedChanges(planText !== prevPlanTextRef.current);
+    }
+    prevPlanTextRef.current = planText;
+  }, [planText, view]);
+
+  // If a plan is selected from the left list, navigate to the Plan Preview
+  // view to display the saved plan. Do not override selection when the user
+  // is actively working on an unsaved generated plan.
+  useEffect(() => {
+    if (selectedPlan && !hasUnsavedGeneratedPlan) {
+      setView("preview");
+      setIsEditingSaved(false);
+      setPlanText(selectedPlan.text || "");
+      
+    }
+  }, [selectedPlan, hasUnsavedGeneratedPlan]);
 
   useEffect(() => {
     //console.log('BACKEND_URL=', process.env.REACT_APP_BACKEND_URL);
@@ -69,6 +100,54 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     } catch (e) {}
     setToken("");
     setMsg("Session expired or invalid token. Please login again.");
+    // Force a full reload so app-level routing / auth checks redirect to login
+    window.location.reload();
+
+  };
+
+  // Regenerate an existing saved plan using a new requirement/instruction.
+  const regenerateSavedPlan = async (path) => {
+    if (!requirements.trim()) {
+      setMsg("Please enter new requirement for regeneration");
+      return;
+    }
+    setMsg("Regenerating plan…");
+    setIsGenerating(true);
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const body = {
+        path: path,
+        new_requirement: requirements,
+        original_plan_text: selectedPlan?.text || planText || "",
+      };
+      const res = await apiPost(`${backendURL}/saved_plans/update`, body);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const newText = data.plan_text || "";
+        setSelectedPlan((prev) => ({ ...(prev || {}), text: newText }));
+        setPlanText(newText);
+        setGeneratedPlan(newText);
+        // regenerated content should be treated as an unsaved generated plan
+        setHasUnsavedGeneratedPlan(true);
+        setMsg("Plan regenerated successfully. Review and save to overwrite.");
+        setView("edit");
+        setIsEditingSaved(true);
+        setHasUnsavedChanges(true);
+      } else if (res.status === 401) {
+        if (data && data.error && data.error.toLowerCase().includes("token")) {
+          handleInvalidToken();
+        } else {
+          setMsg(data.error || "Unauthorized");
+        }
+      } else {
+        setMsg(data.error || "Failed to regenerate plan");
+      }
+    } catch (e) {
+      setMsg("Network error");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const fetchPlans = useCallback(async () => {
@@ -117,7 +196,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     }
   }, [fetchPlans]);
 
-  // Create Plan: generate a plan from requirements (shows "Generating plan…")
+  // Create Plan: generate a plan from requirements (shows loading spinner)
   const createPlan = async () => {
     if (!requirements.trim()) {
       setMsg("Please enter plan requirements");
@@ -125,18 +204,20 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     }
     // token is optional; backend may accept unauthenticated requests depending on configuration
     setIsGenerating(true);
-    // setMsg('Generating plan…');
+    setMsg('Generating plan…');
     try {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const body = { topics: [requirements] };
+      const body = { requirement: requirements };
       const res = await apiPost(`${backendURL}/plans`, body);
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const planText = data.notes || data.plan_text || data.answer || "";
+        const planText = data.plan_text || data.answer || data.text || "";
         // load into generated plan and switch to create/edit view for review
         //console.log('Generated plan text:', planText);
         setGeneratedPlan(planText || "");
+        // mark that we have a newly generated plan that hasn't been saved yet
+        setHasUnsavedGeneratedPlan(true);
         console.log("createPlan:: response data:", data);
 
         setSelectedPlan({
@@ -145,10 +226,14 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
           created_at: data.created_at || new Date().toISOString(),
           text: planText,
         });
-        setMsg("Plan generated");
+        setMsg("Plan generated successfully");
 
         // refresh saved plans list in case server persisted a draft
         fetchPlans();
+        // Move into Edit/Update Plan View so user can tweak, regenerate, or save
+        setView("edit");
+        setIsEditingSaved(true);
+        setPlanText(planText || "");
       } else if (res.status === 401) {
         if (data && data.error && data.error.toLowerCase().includes("token")) {
           //console.log('Invalid token detected when generating plan :: createPlan');
@@ -166,6 +251,42 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     }
   };
 
+  // Delete a saved plan by path
+  const deletePlan = async (path) => {
+    if (!path) {
+      setMsg("No saved plan path provided for deletion");
+      return;
+    }
+    if (!window.confirm("Delete this plan? This action cannot be undone.")) return;
+    setMsg("Deleting plan…");
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const body = { path };
+      const res = await apiPost(`${backendURL}/saved_plans/delete`, body);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMsg("Plan deleted");
+        // refresh plans and clear selection
+        try { await fetchPlans(); } catch (e) {}
+        setSelectedPlan(null);
+        setView("dashboard");
+      } else if (res.status === 401) {
+        if (data && data.error && data.error.toLowerCase().includes("token")) {
+          handleInvalidToken();
+        } else {
+          setMsg(data.error || "Unauthorized");
+        }
+      } else {
+        setMsg(data.error || "Failed to delete plan");
+      }
+    } catch (e) {
+      setMsg("Network error");
+    }
+  };
+
+  
+
   const savePlan = async () => {
     // allow saving either the explicitly edited planText or the last generatedPlan
     const finalText = planText || generatedPlan;
@@ -173,8 +294,45 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       setMsg("No plan text to save");
       return;
     }
-    const finalName =
-      window.prompt("Enter a name for this plan (ascii only):") || "";
+    // If editing an existing saved plan, prompt for confirmation to overwrite
+    if (selectedPlan && selectedPlan.path) {
+      const confirmOverwrite = window.confirm(`Overwrite existing plan '${selectedPlan.name}'? This action cannot be undone.`);
+      if (!confirmOverwrite) return;
+      setMsg("Saving changes…");
+      try {
+        const headers = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const body = { path: selectedPlan.path, plan_text: finalText };
+        const res = await apiPost(`${backendURL}/saved_plans/update`, body);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setMsg("Changes saved successfully");
+          setSelectedPlan((prev) => ({ ...(prev || {}), text: finalText }));
+          setGeneratedPlan(finalText);
+          setHasUnsavedGeneratedPlan(false);
+          setHasUnsavedChanges(false);
+          try {
+            fetchPlans();
+          } catch (e) {}
+          setIsEditingSaved(false);
+          setView("preview");
+        } else if (res.status === 401) {
+          if (data && data.error && data.error.toLowerCase().includes("token")) {
+            handleInvalidToken();
+          } else {
+            setMsg(data.error || "Unauthorized");
+          }
+        } else {
+          setMsg(data.error || "Failed to save plan");
+        }
+      } catch (e) {
+        setMsg("Network error");
+      }
+      return;
+    }
+
+    // Otherwise create a new saved plan (prompt for a name)
+    const finalName = window.prompt("Enter a name for this plan (ascii only):", selectedPlan?.name || "") || "";
     if (!finalName) return;
     setMsg("Saving plan…");
     try {
@@ -184,18 +342,18 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       const res = await apiPost(`${backendURL}/saved_plans`, body);
       const data = await res.json().catch(() => ({}));
       if (res.ok || res.status === 201) {
-        setMsg("Plan saved");
-        // refresh the user's plans list so the new plan appears
+        setMsg("Plan saved successfully");
         try {
           fetchPlans();
-        } catch (e) {
-          /* ignore */
+        } catch (e) {}
+        setHasUnsavedGeneratedPlan(false);
+        setHasUnsavedChanges(false);
+        setView("preview");
+        if (data && data.path) {
+          setSelectedPlan((prev) => ({ ...(prev || {}), path: data.path }));
         }
-        // reload to ensure caller sees fresh data (per UX requirement)
-        window.location.reload();
       } else if (res.status === 401) {
         if (data && data.error && data.error.toLowerCase().includes("token")) {
-          //console.log('Invalid token detected when saving plan :: savePlan');
           handleInvalidToken();
         } else {
           setMsg(data.error || "Unauthorized");
@@ -210,80 +368,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
 
   const containerStyle = { width: "100%", margin: "0 auto" };
 
-  // Simple markdown -> HTML renderer (supports **bold**, unordered/ordered lists, paragraphs, and basic code blocks)
-  const escapeHtml = (unsafe) => {
-    return (unsafe || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  };
-
-  const renderMarkdown = (md) => {
-    if (!md) return "";
-    // normalize line endings
-    const text = String(md || "");
-    // escape HTML first
-    let safe = escapeHtml(text);
-
-    // convert bold **text**
-    safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-    // split lines and build lists/paragraphs
-    const lines = safe.split(/\r?\n/);
-    const out = [];
-    let inUl = false;
-    let inOl = false;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) {
-        if (inUl) {
-          out.push("</ul>");
-          inUl = false;
-        }
-        if (inOl) {
-          out.push("</ol>");
-          inOl = false;
-        }
-        continue;
-      }
-      const ulMatch = line.match(/^[-+*]\s+(.*)$/);
-      const olMatch = line.match(/^\d+\.\s+(.*)$/);
-      const h1 = line.match(/^#\s+(.*)$/);
-      const h2 = line.match(/^##\s+(.*)$/);
-      const strongOnly = line.match(/^<strong>(.+)<\/strong>$/);
-      if (ulMatch) {
-        if (!inUl) {
-          out.push("<ul>");
-          inUl = true;
-        }
-        out.push(`<li>${ulMatch[1]}</li>`);
-        continue;
-      } else if (olMatch) {
-        if (!inOl) {
-          out.push("<ol>");
-          inOl = true;
-        }
-        out.push(`<li>${olMatch[1]}</li>`);
-        continue;
-      } else if (h1) {
-        out.push(`<h1>${h1[1]}</h1>`);
-        continue;
-      } else if (h2) {
-        out.push(`<h2>${h2[1]}</h2>`);
-        continue;
-      } else if (strongOnly) {
-        // lines that are entirely bold get promoted to a heading
-        out.push(`<h2>${strongOnly[1]}</h2>`);
-        continue;
-      }
-      // plain paragraph line
-      out.push(`<p>${line}</p>`);
-    }
-    if (inUl) out.push("</ul>");
-    if (inOl) out.push("</ol>");
-
-    return out.join("\n");
-  };
+  // Use centralized plan formatter for previews
 
   // layout: left sidebar (list) + right sidebar (controls + detail/edit)
   const leftStyle = {
@@ -294,9 +379,167 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   };
   const rightStyle = { flex: 1, paddingLeft: 12 };
 
+  // --- Small subcomponents for readability (kept inside same file) ---
+  const LoadingSpinner = () => (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 240 }}>
+      <style>{`
+        .spinner {
+          border: 4px solid rgba(0, 0, 0, 0.1);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border-left-color: #09f;
+          animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div className="spinner"></div>
+      <span style={{ marginLeft: '10px' }}>Please wait, Generating Your Personalized Plan...</span>
+    </div>
+  );
+  // --- View Components ---
+  const CreateNewPlanView = ({
+    isGenerating,
+    hasUnsavedGeneratedPlan,
+    planText,
+    setPlanText,
+    generatedPlan,
+    renderPlanMarkdown,
+    LoadingSpinner
+  }) => (
+    <div
+      className="muted"
+      style={{
+        padding: 12,
+        minHeight: 240,
+        border: "1px dashed #eee",
+        borderRadius: 6,
+      }}
+    >
+      {isGenerating ? (
+        <LoadingSpinner />
+      ) : !hasUnsavedGeneratedPlan ? (
+        <div>Provide requirements and click Create New Plan to generate.</div>
+      ) : (
+        <div>
+          <div>
+            <textarea
+              value={planText}
+              onChange={(e) => setPlanText(e.target.value)}
+              style={{ width: "100%", minHeight: 160, padding: 12, boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <h4>Generated Plan Preview</h4>
+            <div style={{ background: "#fafafa", padding: 12 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || generatedPlan) }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const EditUpdatePlanView = ({
+    isGenerating,
+    planText,
+    setPlanText,
+    selectedPlan,
+    renderPlanMarkdown,
+    LoadingSpinner
+  }) => (
+    <div>
+      {isGenerating ? <LoadingSpinner /> : (
+        <>
+          <div>
+            <textarea
+              value={planText}
+              onChange={(e) => setPlanText(e.target.value)}
+              placeholder={"Edit the selected plan here."}
+              style={{ width: "100%", minHeight: 160, padding: 12, boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <h4>Formatted Preview</h4>
+            <div
+              style={{ background: "#fafafa", padding: 12 }}
+              dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || (selectedPlan && selectedPlan.text) || "") }}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const PlanPreviewView = ({
+    selectedPlan,
+    renderPlanMarkdown
+  }) => (
+    <div className="card" style={{ padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <strong style={{ fontSize: 18 }}>{selectedPlan?.name || "Untitled plan"}</strong>
+          <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
+            <div className="muted small-text" style={{ fontSize: 13 }}>Owner: <strong style={{fontWeight:500}}>{selectedPlan?.owner || "unknown"}</strong></div>
+            <div className="muted small-text" style={{ fontSize: 13 }}>Created: <strong style={{fontWeight:500}}>{formatDateFriendly(selectedPlan?.created_at)}</strong></div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }} />
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ background: "#fafafa", padding: 12 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
+      </div>
+    </div>
+  );
+
+  // Helper: friendly date formatting with graceful fallback
+  function formatDateFriendly(dt) {
+    if (!dt) return "";
+    try {
+      const d = new Date(dt);
+      if (isNaN(d.getTime())) return dt;
+      // include short time for clarity
+      return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return dt;
+    }
+  }
+
+  // Helper: decide message type for UI (error / success / info)
+  function getMessageMeta(text) {
+    if (!text) return { type: null };
+    const t = text.toLowerCase();
+    if (/(failed|fail|error|unauthor|invalid|network|session expired)/i.test(t)) return { type: 'error' };
+    if (/(saved|success|generated|created)/i.test(t)) return { type: 'success' };
+    return { type: 'info' };
+  }
+
   return (
     <div className="planner-panel card" style={containerStyle}>
-      <h3>Planner</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h3 style={{ margin: 0 }}>Planner</h3>
+        <button
+          title="Create new plan"
+          className="btn"
+          aria-label="Create new plan"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, padding: 6, borderRadius: 6 }}
+          onClick={() => {
+            setView("new");
+            setSelectedPlan(null);
+            setRequirements("");
+            setPlanText("");
+            setGeneratedPlan("");
+            setIsEditingSaved(false);
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="24" height="24" rx="4" fill="transparent" />
+            <path d="M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
 
       {/* dev-mode user id input removed; app no longer depends on auth_disabled/default_dev_user */}
 
@@ -331,6 +574,13 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             />
           </div>
           <div style={{ marginTop: 12 }}>
+            {hasUnsavedGeneratedPlan && (
+              <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
+                You are reviewing a newly-generated plan. Existing saved plans
+                are temporarily non-interactive until you Save or Clear the new
+                plan.
+              </div>
+            )}
             {savedPlansError && (
               <p className="muted" style={{ color: "crimson" }}>
                 {savedPlansError}
@@ -351,53 +601,56 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                         .includes(filterText.toLowerCase())
                     : true
                 )
-                .map((p, idx) => (
-                  <li
-                    key={p.path || p.filename || p.id || idx}
-                    style={{
-                      marginBottom: 8,
-                      padding: 8,
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      background:
-                        selectedPlan &&
-                        (selectedPlan.name === (p.name || p.filename) ||
-                          selectedPlan.text ===
-                            (p.plan_text || p.text || p.notes))
-                          ? "#f6f9ff"
-                          : "transparent",
-                    }}
-                    onClick={() => {
-                      console.log("Selected plan:", p);
-                      setSelectedPlan({
-                        name: p.name || p.filename || "",
-                        owner: p.owner || p.user_id || p.email || "Unknown",
-                        created_at: p.created_at || p.created || "",
-                        text: p.plan_text || "N/A Plan",
-                      });
-                      setIsTyping(false);
-                      setPlanText("");
-                    }}
-                  >
-                    <div
+                .map((p, idx) => {
+                  const isSelected =
+                    selectedPlan &&
+                    (selectedPlan.name === (p.name || p.filename) ||
+                      selectedPlan.text === (p.plan_text || p.text || ""));
+                  const disabledStyle = hasUnsavedGeneratedPlan
+                    ? { opacity: 0.6, cursor: "not-allowed", pointerEvents: "none" }
+                    : { cursor: "pointer" };
+                  return (
+                    <li
+                      key={p.path || p.filename || p.id || idx}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
+                        marginBottom: 8,
+                        padding: 8,
+                        borderRadius: 6,
+                        background: isSelected ? "#f6f9ff" : "transparent",
+                        ...disabledStyle,
+                      }}
+                      onClick={hasUnsavedGeneratedPlan ? undefined : () => {
+                        console.info("Selected plan:", p);
+                        setSelectedPlan({
+                          name: p.name || p.filename || "",
+                          owner: p.owner || p.user_id || p.email || "Unknown",
+                          created_at: p.created_at || p.created || "",
+                          text: p.plan_text || p.text || "N/A Plan",
+                          path: p.path || null,
+                        });
+                        // Open Plan Preview View directly
+                        setIsEditingSaved(false);
+                        setView("preview");
+                        setPlanText("");
                       }}
                     >
-                      <strong style={{ fontSize: 14 }}>
-                        {p.name || p.id || p.filename || `plan-${idx + 1}`}
-                      </strong>
-                      <span
-                        className="muted small-text"
-                        style={{ fontSize: 11 }}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
                       >
-                        {(p.created_at || p.created || "").split("T")[0]}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                        <strong style={{ fontSize: 14 }}>
+                          {p.name || p.id || p.filename || `plan-${idx + 1}`}
+                        </strong>
+                        <span className="muted small-text" style={{ fontSize: 11 }}>
+                          {(p.created_at || p.created || "").split("T")[0]}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         </div>
@@ -406,139 +659,224 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         <div style={rightStyle}>
           {/* Row 1: controls */}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              placeholder="Enter instructions to create a plan"
-              value={requirements}
-              onChange={(e) => {
-                setRequirements(e.target.value);
-                setIsTyping(e.target.value.trim() !== "");
-              }}
-              onFocus={() => setIsTyping(true)}
-              onBlur={() => {
-                if (!requirements.trim()) setIsTyping(false);
-              }}
-              style={{ flex: 1, padding: "8px 10px" }}
-              aria-label="plan-requirements"
-            />
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setRequirements("");
-                setGeneratedPlan("");
-                setIsTyping(true);
-                setSelectedPlan(null);
-                setPlanText("");
-                createPlan();
-              }}
-              disabled={isGenerating || !requirements.trim()}
-            >
-              Create Plan
-            </button>
-            <button
-              className="btn secondary"
-              onClick={() => {
-                setRequirements("");
-                setIsTyping(false);
-                setGeneratedPlan("");
-                setPlanText("");
-              }}
-            >
-              Clear
-            </button>
-          </div>
+            {(view !== "preview" || isEditingSaved) && (
+              <input
+                placeholder="Enter instructions to create a plan"
+                value={requirements}
+                onChange={(e) => {
+                  setRequirements(e.target.value);
+                }}
+                style={{ flex: 1, padding: "8px 10px" }}
+                aria-label="plan-requirements"
+              />
+            )}
+            
 
-          {/* Row 2: if typing -> show blank editable area; else if selectedPlan -> show detail */}
-          <div style={{ marginTop: 12 }}>
-            {isTyping ? (
-              <div>
-                <textarea
-                  value={planText}
-                  onChange={(e) => setPlanText(e.target.value)}
-                  placeholder={
-                    isGenerating
-                      ? "Generating plan..."
-                      : "Provide instructions to create a new plan."
-                  }
-                  style={{
-                    width: "100%",
-                    minHeight: 240,
-                    padding: 12,
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setPlanText("");
-                      setGeneratedPlan("");
-                    }}
-                  >
-                    Reset
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={savePlan}
-                    disabled={!(planText || generatedPlan)}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            ) : selectedPlan ? (
-              <div className="card" style={{ padding: 12 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <strong>{selectedPlan.name || "Untitled plan"}</strong>
-                    <div className="muted small-text">
-                      Owner: {selectedPlan.owner || "unknown"}
-                    </div>
-                    <div className="muted small-text">
-                      Created: {selectedPlan.created_at || ""}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+            {(view === "dashboard" || view === "new") && (
+              <>
+                {!hasUnsavedGeneratedPlan ? (
+                  <>
                     <button
+                      type="button"
                       className="btn"
-                      onClick={() => {
-                        setIsTyping(true);
-                        setPlanText(selectedPlan.text || "");
+                      onClick={async () => {
+                        try {
+                          await createPlan();
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }}
+                      disabled={isGenerating || !requirements.trim()}
                     >
-                      Edit
+                      Create New Plan
                     </button>
                     <button
                       className="btn secondary"
                       onClick={() => {
-                        navigator.clipboard &&
-                          navigator.clipboard.writeText(
-                            selectedPlan.text || ""
-                          );
+                        // Clear inputs for new plan creation and refresh page
+                        setRequirements("");
+                        setGeneratedPlan("");
+                        setPlanText("");
+                        setHasUnsavedGeneratedPlan(false);
+                        setMsg("");
+                        setView("dashboard");
+                        setSelectedPlan(null);
+                        setIsEditingSaved(false);
+                        // Refresh the page to reset all state
+                        window.location.reload();
                       }}
                     >
-                      Copy
+                      Clear
                     </button>
-                  </div>
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  <div
-                    style={{ background: "#fafafa", padding: 12 }}
-                    dangerouslySetInnerHTML={{
-                      __html: renderMarkdown(
-                        selectedPlan.text || "No plan loaded"
-                      ),
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
+                  </>
+                ) : (
+                  // After generation: show Save, Cancel, Clear
+                  <>
+                    <button
+                      className="btn"
+                      onClick={async () => {
+                        await savePlan();
+                      }}
+                    >
+                      Save Plan
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        if (hasUnsavedChanges) {
+                          const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?");
+                          if (!confirmCancel) return;
+                        }
+                        setView("dashboard");
+                        setRequirements("");
+                        setGeneratedPlan("");
+                        setPlanText("");
+                        setHasUnsavedGeneratedPlan(false);
+                        setMsg("");
+                        setIsEditingSaved(false);
+                        setHasUnsavedChanges(false);
+                        window.location.reload();
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+
+            {view === "preview" && !isEditingSaved && selectedPlan && (
+              <>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    // Enter edit mode for this saved plan
+                    setView("edit");
+                    setIsEditingSaved(true);
+                    setPlanText(selectedPlan.text || "");
+                  }}
+                >
+                  Edit Plan
+                </button>
+                <button
+                  className="btn secondary"
+                  onClick={() => {
+                    // Delete the selected plan
+                    if (selectedPlan && selectedPlan.path) {
+                      deletePlan(selectedPlan.path);
+                    } else if (selectedPlan && selectedPlan.name) {
+                      // fallback by name
+                      deletePlan(null);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </>
+            )}
+
+            {view === "edit" && isEditingSaved && (
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={async () => {
+                    // Regenerate/Update Plan: for saved plans call update endpoint,
+                    // for unsaved generated plans call createPlan again with requirements
+                    if (selectedPlan && selectedPlan.path) {
+
+                      if (!requirements.trim()) {
+                        setMsg("Please enter a New Instruction to regenerate this plan.");
+                        return;
+                      }
+                      setMsg("Regenerating plan…");
+                      setIsGenerating(true);
+                      try {
+                        await regenerateSavedPlan(selectedPlan.path);
+                        // After regeneration completes, stay in Edit/Update view
+                        setView("edit");
+                        setIsEditingSaved(true);
+                      } finally {
+
+                        setHasUnsavedGeneratedPlan(true);
+                        setIsGenerating(false);
+                      }
+                    } else {
+                      // unsaved plan: regenerate by creating again
+                      await createPlan();
+                    }
+                  }}
+                >
+                  Regenerate Plan
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={async () => {
+                    await savePlan();
+                    setHasUnsavedGeneratedPlan(false);
+                    setHasUnsavedChanges(false);
+                    setMsg("Changes saved successfully.");
+                    setView("preview");
+                  }}
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    if (hasUnsavedChanges) {
+                      const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?");
+                      if (!confirmCancel) return;
+                    }
+                    setIsEditingSaved(false);
+                    if (selectedPlan) {
+                      setView("preview");
+                    } else {
+                      setView("dashboard");
+                    }
+                    setHasUnsavedChanges(false);
+                    window.location.reload();
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Row 2: editable area for editing saved plan; New view shows requirement + preview; Saved shows formatted view */}
+          <div style={{ marginTop: 12 }}>
+            {view === "edit" && isEditingSaved && (
+              <EditUpdatePlanView
+                isGenerating={isGenerating}
+                planText={planText}
+                setPlanText={setPlanText}
+                selectedPlan={selectedPlan}
+                renderPlanMarkdown={renderPlanMarkdown}
+                LoadingSpinner={LoadingSpinner}
+              />
+            )}
+            {view === "new" && (
+              <CreateNewPlanView
+                isGenerating={isGenerating}
+                hasUnsavedGeneratedPlan={hasUnsavedGeneratedPlan}
+                planText={planText}
+                setPlanText={setPlanText}
+                generatedPlan={generatedPlan}
+                renderPlanMarkdown={renderPlanMarkdown}
+                LoadingSpinner={LoadingSpinner}
+              />
+            )}
+            {view === "preview" && selectedPlan && (
+              <PlanPreviewView
+                selectedPlan={selectedPlan}
+                renderPlanMarkdown={renderPlanMarkdown}
+              />
+            )}
+            {/* fallback when no view matches */}
+            {(!isEditingSaved && view !== "new" && view !== "preview" && !selectedPlan) && (
               <div
                 className="muted"
                 style={{
@@ -549,55 +887,36 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                 }}
               >
                 Select a plan from the left or Provide instructions to create a
-                new plan..
+                new plan...
               </div>
             )}
           </div>
 
-          <div
-            className="message text-success"
-            aria-live="polite"
-            style={{ marginTop: 12 }}
-          >
-            {msg}
+          <div aria-live="polite" style={{ marginTop: 12 }}>
+            {msg && (() => {
+              const meta = getMessageMeta(msg);
+              const baseStyle = { padding: '10px 12px', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'center' };
+              let style = { ...baseStyle, background: '#eef2ff', color: '#073b4c', border: '1px solid #e2e8f0' };
+              let icon = null;
+              if (meta.type === 'error') {
+                style = { ...baseStyle, background: '#fff5f5', color: '#7f1d1d', border: '1px solid #fecaca' };
+                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>);
+              } else if (meta.type === 'success') {
+                style = { ...baseStyle, background: '#f0fdf4', color: '#065f46', border: '1px solid #bbf7d0' };
+                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>✅</span>);
+              } else {
+                icon = (<span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>);
+              }
+              return (
+                <div style={style} role={meta.type === 'error' ? 'alert' : 'status'}>
+                  {icon}
+                  <div style={{ fontSize: 14, lineHeight: 1.3 }}>{msg}</div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Generated preview (kept below) */}
-          {generatedPlan && (
-            <div className="card" style={{ padding: 12, marginTop: 12 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <h4 style={{ margin: 0 }}>Generated Plan Preview</h4>
-                <div>
-                  <button
-                    className="btn secondary"
-                    onClick={() => {
-                      setGeneratedPlan("");
-                    }}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <div
-                  style={{ background: "#fafafa", padding: 12 }}
-                  dangerouslySetInnerHTML={{
-                    __html: renderMarkdown(generatedPlan),
-                  }}
-                />
-              </div>
-              {/* <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <button className="btn" onClick={() => { setPlanText(generatedPlan); setIsTyping(true); }}>Edit / Save</button>
-                <button className="btn" onClick={savePlan}>Save</button>
-              </div> */}
-            </div>
-          )}
+          {/* generated preview removed (rendered inline in New view or edit view) */}
         </div>
       </div>
     </div>

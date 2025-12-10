@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 're
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
+import QuizPage from './pages/QuizPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PlannerPanel from './components/PlannerPanel';
 import { authService } from './services/authService';
@@ -72,6 +73,9 @@ function Header() {
             <li>
               <Link to="/planner" className={`tab ${isActive('/planner') ? 'tab-active' : ''}`}>Planner</Link>
             </li>
+            <li>
+              <Link to="/quiz" className={`tab ${isActive('/quiz') ? 'tab-active' : ''}`}>Quiz</Link>
+            </li>
           </ul>
         </nav>
 
@@ -99,6 +103,7 @@ function App() {
               <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/planner" element={<ProtectedRoute><PlannerPanel /></ProtectedRoute>} />
+              <Route path="/quiz" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
             </Routes>
           </div>

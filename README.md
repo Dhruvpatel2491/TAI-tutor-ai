@@ -50,8 +50,8 @@ If you don't have Ollama available during development or CI you can set the envi
 
 - `backend/server.py` — Flask backend exposing `/health`, `/query`, `/query_v2`, and `/rebuild` endpoints. Constants at the top (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`) control default models and timeouts.
 - `backend/vector_store_gen.py` — indexing and ingestion logic (parsers for PDFs, PPTX, notebooks, Python code, and other formats). Contains `get_or_create_index()` and document loaders.
-- `backend/index_store/` — persisted index and metadata (relative to the `backend/` folder). Expected files include `docstore.json` and `embeddings_meta.json`.
-- `backend/trial-data/` and `data/base-data/` — source documents used to build the index in development and for a larger corpus, respectively.
+- `backend/vector_index_store/` — persisted index and metadata (relative to the `backend/` folder). Expected files include `docstore.json` and `embeddings_meta.json`.
+- `backend/course-data/` and `data/base-data/` — source documents used to build the index in development and for a larger corpus, respectively.
 - `frontend/` — React app that communicates with the backend. Key components: `components/ChatbotInterface.js`, `components/PlannerPanel.js`.
 
 ## Features
@@ -60,6 +60,12 @@ If you don't have Ollama available during development or CI you can set the envi
 - Local LLM + embedding via Ollama: uses LlamaIndex wrapper for retrieval and query flows.
 - Hint vs direct answer modes: prompt templates are designed to support both hint-first tutoring and direct answers (see `backend/vector_store_gen.py` and prompt hooks).
 - Persisted index and incremental ingestion: `embeddings_meta.json` keeps track of which files were already embedded to avoid reprocessing unchanged files.
+- **Chat History**: Full conversation persistence with sidebar navigation, allowing users to:
+  - View and load past conversations
+  - Start new chat sessions
+  - Delete or archive old conversations
+  - See conversation previews with titles and timestamps
+  - See [docs/CHAT_HISTORY.md](docs/CHAT_HISTORY.md) for detailed documentation
 
 ## Environment variables (common)
 

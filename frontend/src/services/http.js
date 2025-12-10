@@ -31,10 +31,9 @@ export async function apiRequest(url, { method = 'GET', body = undefined, header
   return fetch(url, init);
 }
 
-export const apiGet = (url) => apiRequest(url, { method: 'GET' });
-export const apiPost = (url, body) => {
-
-  return apiRequest(url, { method: 'POST', body });
+export const apiGet = (url, opts = {}) => apiRequest(url, { method: 'GET', ...opts });
+export const apiPost = (url, body, opts = {}) => {
+  return apiRequest(url, { method: 'POST', body, ...opts });
 };
 
 const http = { apiRequest, apiGet, apiPost };

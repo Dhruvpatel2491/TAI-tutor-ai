@@ -1,0 +1,2 @@
+# This directory stores quiz data for each user
+# Structure: user_data/quiz/{user_id}/{quiz_title}_{quiz_id}.json

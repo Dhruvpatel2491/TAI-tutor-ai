@@ -4,14 +4,17 @@
 
 backend/__pycache__
 backend_test/__pycache__
-backend/index_store
+backend/vector_index_store/*
 
 test/__pycache__
 
 frontend/node_modules/*
+frontend/.env
 
 data/base-data/CSC15_F25/LongAssignment2/__pycache__/functions.cpython-311.pyc
 
 z-script
 .github/prompts
+
+
 
