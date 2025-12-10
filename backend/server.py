@@ -112,7 +112,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend.api")
 
 # Configuration via env vars with sensible defaults
-INDEX_DIR 	= "./index_store"
+INDEX_DIR 	= "./vector_index_store"
 DATA_DIR 	= "./trial-data"
 # directory where embedding definition lives (model.txt or config.json)
 EMBEDDINGS_DIR = os.environ.get("EMBEDDINGS_DIR", "./embeddings")

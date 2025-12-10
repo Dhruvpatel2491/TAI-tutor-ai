@@ -4,7 +4,7 @@
 
 backend/__pycache__
 backend_test/__pycache__
-backend/index_store
+backend/vector_vector_index_store
 
 test/__pycache__
 
