@@ -100,6 +100,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     } catch (e) {}
     setToken("");
     setMsg("Session expired or invalid token. Please login again.");
+    // Force a full reload so app-level routing / auth checks redirect to login
     window.location.reload();
 
   };
@@ -127,7 +128,8 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         setSelectedPlan((prev) => ({ ...(prev || {}), text: newText }));
         setPlanText(newText);
         setGeneratedPlan(newText);
-        setHasUnsavedGeneratedPlan(false);
+        // regenerated content should be treated as an unsaved generated plan
+        setHasUnsavedGeneratedPlan(true);
         setMsg("Plan regenerated successfully. Review and save to overwrite.");
         setView("edit");
         setIsEditingSaved(true);
@@ -475,29 +477,43 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     renderPlanMarkdown
   }) => (
     <div className="card" style={{ padding: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <strong>{selectedPlan?.name || "Untitled plan"}</strong>
-          <div className="muted small-text">Owner: {selectedPlan?.owner || "unknown"}</div>
-          <div className="muted small-text">Created: {selectedPlan?.created_at || ""}</div>
+          <strong style={{ fontSize: 18 }}>{selectedPlan?.name || "Untitled plan"}</strong>
+          <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
+            <div className="muted small-text" style={{ fontSize: 13 }}>Owner: <strong style={{fontWeight:500}}>{selectedPlan?.owner || "unknown"}</strong></div>
+            <div className="muted small-text" style={{ fontSize: 13 }}>Created: <strong style={{fontWeight:500}}>{formatDateFriendly(selectedPlan?.created_at)}</strong></div>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }} />
       </div>
       <div style={{ marginTop: 12 }}>
-        <div className="muted small-text" style={{ marginBottom: 8 }}>
-          Tip: Saved plans also support Markdown tables. Use the same
-          table format as shown in the New Plan preview.
-        </div>
         <div style={{ background: "#fafafa", padding: 12 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
       </div>
     </div>
   );
+
+  // Helper: friendly date formatting with graceful fallback
+  function formatDateFriendly(dt) {
+    if (!dt) return "";
+    try {
+      const d = new Date(dt);
+      if (isNaN(d.getTime())) return dt;
+      // include short time for clarity
+      return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return dt;
+    }
+  }
+
+  // Helper: decide message type for UI (error / success / info)
+  function getMessageMeta(text) {
+    if (!text) return { type: null };
+    const t = text.toLowerCase();
+    if (/(failed|fail|error|unauthor|invalid|network|session expired)/i.test(t)) return { type: 'error' };
+    if (/(saved|success|generated|created)/i.test(t)) return { type: 'success' };
+    return { type: 'info' };
+  }
 
   return (
     <div className="planner-panel card" style={containerStyle}>
@@ -876,12 +892,28 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             )}
           </div>
 
-          <div
-            className="message text-success"
-            aria-live="polite"
-            style={{ marginTop: 12 }}
-          >
-            {msg}
+          <div aria-live="polite" style={{ marginTop: 12 }}>
+            {msg && (() => {
+              const meta = getMessageMeta(msg);
+              const baseStyle = { padding: '10px 12px', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'center' };
+              let style = { ...baseStyle, background: '#eef2ff', color: '#073b4c', border: '1px solid #e2e8f0' };
+              let icon = null;
+              if (meta.type === 'error') {
+                style = { ...baseStyle, background: '#fff5f5', color: '#7f1d1d', border: '1px solid #fecaca' };
+                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>);
+              } else if (meta.type === 'success') {
+                style = { ...baseStyle, background: '#f0fdf4', color: '#065f46', border: '1px solid #bbf7d0' };
+                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>✅</span>);
+              } else {
+                icon = (<span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>);
+              }
+              return (
+                <div style={style} role={meta.type === 'error' ? 'alert' : 'status'}>
+                  {icon}
+                  <div style={{ fontSize: 14, lineHeight: 1.3 }}>{msg}</div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* generated preview removed (rendered inline in New view or edit view) */}

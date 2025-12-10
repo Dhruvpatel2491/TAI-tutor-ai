@@ -1,46 +1,40 @@
-<!-- Condensed copilot instructions for TAI-tutor-ai -->
-# TAI-tutor-ai — Copilot instructions (concise)
+<!-- Copilot instructions for TAI-tutor-ai (concise, actionable) -->
+# TAI-tutor-ai — Copilot instructions
 
-This short guide highlights the essential knowledge AI coding agents need to be productive in this repo.
+This file gives targeted, repo-specific guidance so an AI coding agent can be productive quickly.
 
-1) Big picture
-- Backend: Flask app at `backend/server.py` — exposes `/health`, `/query`, `/query_v2`, `/rebuild`. It orchestrates LlamaIndex + Ollama for retrieval + LLM answers.
-- Ingestion & index: `backend/vector_store_gen.py` builds the index (parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` and tree-sitter code support). Index files live in `index_store/` (`docstore.json`, `embeddings_meta.json`).
-- Frontend: `frontend/` React app communicates with backend; local Ollama is assumed for some flows.
+- Big picture
+  - Backend: Flask app at `backend/server.py`. Key endpoints: `/health`, `/query`, `/query_v2`, `/rebuild`.
+    The server wires LlamaIndex (index/query) + local Ollama LLMs for responses.
+  - Indexing/ingestion: `backend/vector_store_gen.py` builds and persists the vector index in `index_store/` (`docstore.json`, `embeddings_meta.json`, `index_store.json`). Parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` live here; tree-sitter support exists for code parsing.
+  - Frontend: React app in `frontend/` calls the backend HTTP APIs. UI components live under `frontend/src/components` and services under `frontend/src/services`.
 
-2) Run & test (quick commands)
-- Start backend (dev): `cd backend && python server.py` (port via `BACKEND_PORT`).
-- Start frontend: `cd frontend && npm install && npm start`.
-- Tests: start backend, then `pytest backend/test_server.py` to exercise `/query`, `/query_v2`, and `/rebuild` flows.
+- Quick run & test (concrete)
+  - Backend (dev): from repo root: `cd backend && python server.py` (port can be overridden with env var `BACKEND_PORT`).
+  - Frontend: `cd frontend && npm install && npm start` (uses `frontend/src/config.js` for base URL overrides).
+  - Tests: backend tests are under `backend_test/` and can be run after starting the backend: `pytest backend_test/`.
 
-3) Key edit contracts / hotspots
-- Change LLM/embedding defaults in `backend/server.py` (constants `OLLAMA_LLM`, `OLLAMA_EMBED`, `DEFAULT_*`). Prefer env vars for overrides.
-- Modify index behavior in `get_or_create_index()` inside `backend/vector_store_gen.py`. Parser options are passed via the `indexing` dict (e.g., `parser`, `chunk_size`, `chunk_overlap`).
-- Index persistence: update `embeddings_meta.json` using `save_embedding_metadata()` when adding embeddings. `server.get_index(force_rebuild=True, build_kwargs=...)` triggers destructive rebuilds only when explicit.
+- Edit contracts & hotspots (where to change behavior)
+  - LLM / embedding defaults: edit constants in `backend/server.py` (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`, `DEFAULT_*`). Prefer env var overrides.
+  - Index build: change parsing/chunking in `backend/vector_store_gen.py` (see `get_or_create_index()` and `indexing` dict parameters: `parser`, `chunk_size`, `chunk_overlap`).
+  - Embedding metadata: persist updates using `save_embedding_metadata()`; the index store files in `index_store/` are authoritative for persisted state.
 
-4) Conventions & patterns (follow exactly)
-- Parsers: add short deterministic helpers inside `vector_store_gen.py` (e.g., `extract_text_from_pdf`, `extract_code_with_ast`). Keep I/O minimal and deterministic.
-- Prompting: prefer a "hint mode" (scaffolded guidance) and a "direct answer" mode. Centralize templates (suggested new file: `backend/prompts.py`) and wire into `server.py` when calling `as_query_engine`.
-- Tree-sitter: `vector_store_gen.py` may build `build/my-languages.so` from vendor grammars — this step can be slow; only add grammars via the vendor workflow.
+- Conventions & patterns to follow
+  - Parsers: keep I/O deterministic and local to `vector_store_gen.py`; add small helper functions (e.g., `extract_text_from_pdf`) in the same file.
+  - Prompts: the repo prefers two modes — a "hint" (scaffolded) mode and a "direct answer" mode. There is a `backend/prompts.py` entrypoint to centralize templates; wire new prompts there and invoke from `server.py`.
+  - Tree-sitter: adding languages requires building `build/my-languages.so` via the vendor workflow — avoid ad-hoc language additions.
 
-5) Integrations & dependencies to be mindful of
-- Ollama (local) — required for default LLM calls (localhost:11434). If adding cloud fallbacks, implement a `backend/llm_adapters.py` adapter interface and update tests.
-- Heavy packages in `requirements.txt`: `llama-index`, `ollama` client, `PyMuPDF`, `python-pptx`, `tree_sitter`, `nbformat`.
+- Integrations & dependencies
+  - Local Ollama (default): expected at localhost:11434. If implementing cloud fallbacks, add an adapter (suggested `backend/llm_adapters.py`) and update unit tests.
+  - Heavy deps in `requirements.txt`: `llama-index`, `ollama`, `PyMuPDF`, `python-pptx`, `tree_sitter`, `nbformat`. Use a virtualenv or pinned environment.
 
-6) Small example requests
-- Rebuild index (POST body example):
-  `{"question":"List classes","rebuild":true,"indexing":{"parser":"code","chunk_size":512}}`
-- Query with model override:
-  `{"question":"Summarize","model":"llama3-chatqa:latest","temperature":0.1}`
+- Concrete examples
+  - Rebuild request body example: {"question":"List classes","rebuild":true,"indexing":{"parser":"code","chunk_size":512}}
+  - Query with model override example: {"question":"Summarize","model":"llama3-chatqa:latest","temperature":0.1}
 
-7) Safe, low-risk changes
-- Prefer incremental changes: add small modules (e.g., `backend/prompts.py`, `backend/llm_adapters.py`), wire them into `server.py`, and add unit tests under `backend/`.
-- When modifying index persistence or embeddings, include a test that adds a file to `trial-data/` and verifies `embeddings_meta.json` updates.
+- Where to look first (priority)
+  - `backend/server.py` — API wiring, model constants, query engine calls.
+  - `backend/vector_store_gen.py` — ingestion, parsers, index creation.
+  - `index_store/` — persisted index artifacts to inspect after a rebuild.
+  - `frontend/src/services/botService.js` and `frontend/src/components/ChatbotInterface.js` — show how the frontend calls the backend and shapes requests.
 
-8) Where to look first (files to open)
-- `backend/server.py` — API entrypoints, model constants, query engine wiring.
-- `backend/vector_store_gen.py` — ingestion/parsers, `get_or_create_index()`.
-- `index_store/` — persisted index artifacts (`docstore.json`, `embeddings_meta.json`).
-- `frontend/` — React UI and services that call the backend.
-
-If you'd like, I can now: add `backend/prompts.py` and migrate one prompt (hint + direct), or produce a short data-flow diagram. Which would you prefer? Please review and tell me any missing specifics to include.
