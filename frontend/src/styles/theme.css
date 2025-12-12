@@ -90,7 +90,9 @@
 .main-padding {
   padding: 48px 12px;
 }
-
+.container {
+  width: var(--window-width);
+}
 /* container h2 hero-like style */
 .container > h2 {
   text-align: center;

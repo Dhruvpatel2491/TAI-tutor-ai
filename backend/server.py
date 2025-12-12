@@ -954,6 +954,13 @@ except Exception:
 	import chat_manager
 
 
+### CodeQuest API
+try:
+	from backend import codequest_manager
+except Exception:
+	import codequest_manager
+
+
 def _get_user_id_from_request():
 	"""Extract user_id from request auth token or return None if auth is disabled."""
 	if not is_auth_disabled():
@@ -1232,6 +1239,149 @@ def update_chat_session_title(chat_id: str):
 		return jsonify({"error": "chat not found"}), 404
 	except Exception as e:
 		logger.exception("Failed to update chat title")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/tracks", methods=["GET"])
+def codequest_list_tracks():
+	"""List available CodeQuest tracks (programming languages/frameworks)."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	try:
+		tracks = codequest_manager.get_codequest_manager().list_tracks()
+		return jsonify({"tracks": tracks}), 200
+	except Exception as e:
+		logger.exception("Failed to list CodeQuest tracks")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/challenges", methods=["GET"])
+def codequest_list_challenges():
+	"""List challenges for a given track.
+
+	GET /codequest/challenges?track=Python
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	track = (request.args.get("track") or "").strip()
+	if not track:
+		return jsonify({"error": "missing 'track' query param"}), 400
+	try:
+		challenges = codequest_manager.get_codequest_manager().list_challenges(track)
+		return jsonify({"track": track, "challenges": challenges}), 200
+	except Exception as e:
+		logger.exception("Failed to list CodeQuest challenges")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions", methods=["POST"])
+def codequest_create_session():
+	"""Start a new CodeQuest session.
+
+	POST /codequest/sessions
+	JSON body: {"track": "Python"}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	payload = request.get_json(force=True, silent=True) or {}
+	track = (payload.get("track") or "").strip()
+	if not track:
+		return jsonify({"error": "missing 'track'"}), 400
+	try:
+		session = codequest_manager.get_codequest_manager().create_session(user_id=user_id, track=track)
+		current = codequest_manager.get_codequest_manager().get_current_challenge_public(session)
+		return jsonify({"session": session, "current_challenge": current}), 201
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to create CodeQuest session")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions", methods=["GET"])
+def codequest_list_sessions():
+	"""List the user's previous CodeQuest sessions (summaries)."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	try:
+		sessions = codequest_manager.get_codequest_manager().list_sessions(user_id)
+		# Simple stats for dashboard
+		total = len(sessions)
+		completed = sum(1 for s in sessions if s.get("status") == "completed")
+		active = sum(1 for s in sessions if s.get("status") == "active")
+		attempts = sum(int(s.get("attempt_count", 0) or 0) for s in sessions)
+		stats = {
+			"total_sessions": total,
+			"completed_sessions": completed,
+			"active_sessions": active,
+			"total_attempts": attempts,
+			"completion_rate": (completed / total) if total else 0.0,
+		}
+		return jsonify({"sessions": sessions, "stats": stats}), 200
+	except Exception as e:
+		logger.exception("Failed to list CodeQuest sessions")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions/<session_id>", methods=["GET"])
+def codequest_get_session(session_id: str):
+	"""Get a CodeQuest session (including current challenge)."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	try:
+		session = codequest_manager.get_codequest_manager().get_session(user_id, session_id)
+		if not session:
+			return jsonify({"error": "session not found"}), 404
+		current = codequest_manager.get_codequest_manager().get_current_challenge_public(session)
+		return jsonify({"session": session, "current_challenge": current}), 200
+	except Exception as e:
+		logger.exception("Failed to get CodeQuest session")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions/<session_id>/submit", methods=["POST"])
+def codequest_submit_solution(session_id: str):
+	"""Submit a solution for the current challenge and receive feedback."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+
+	payload = request.get_json(force=True, silent=True) or {}
+	challenge_id = payload.get("challenge_id")
+	code = payload.get("code")
+	if not challenge_id or not isinstance(code, str):
+		return jsonify({"error": "missing 'challenge_id' or 'code'"}), 400
+	try:
+		result = codequest_manager.get_codequest_manager().submit_solution(
+			user_id=user_id,
+			session_id=session_id,
+			challenge_id=challenge_id,
+			code=code,
+		)
+		return jsonify(result), 200
+	except FileNotFoundError as e:
+		return jsonify({"error": str(e)}), 404
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to submit CodeQuest solution")
 		return jsonify({"error": str(e)}), 500
 
 

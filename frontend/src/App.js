@@ -5,6 +5,9 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import QuizPage from './pages/QuizPage';
+import CodeQuestDashboardPage from './pages/CodeQuestDashboardPage';
+import CodeQuestSessionPage from './pages/CodeQuestSessionPage';
+import CodeQuestFeedbackPage from './pages/CodeQuestFeedbackPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PlannerPanel from './components/PlannerPanel';
 import { authService } from './services/authService';
@@ -76,6 +79,9 @@ function Header() {
             <li>
               <Link to="/quiz" className={`tab ${isActive('/quiz') ? 'tab-active' : ''}`}>Quiz</Link>
             </li>
+            <li>
+              <Link to="/codequest" className={`tab ${isActive('/codequest') ? 'tab-active' : ''}`}>CodeQuest</Link>
+            </li>
           </ul>
         </nav>
 
@@ -104,6 +110,9 @@ function App() {
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/planner" element={<ProtectedRoute><PlannerPanel /></ProtectedRoute>} />
               <Route path="/quiz" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
+              <Route path="/codequest" element={<ProtectedRoute><CodeQuestDashboardPage /></ProtectedRoute>} />
+              <Route path="/codequest/:sessionId" element={<ProtectedRoute><CodeQuestSessionPage /></ProtectedRoute>} />
+              <Route path="/codequest/:sessionId/feedback" element={<ProtectedRoute><CodeQuestFeedbackPage /></ProtectedRoute>} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
             </Routes>
           </div>

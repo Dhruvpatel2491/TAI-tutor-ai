@@ -6,6 +6,10 @@ backend/__pycache__
 backend_test/__pycache__
 backend/vector_index_store/*
 
+## Runtime / local persistence (do not commit)
+# user_data/
+# vector_index_store/
+
 test/__pycache__
 
 frontend/node_modules/*
@@ -17,4 +21,5 @@ z-script
 .github/prompts
 
 
-
+frontend/build
+frontend/build/*
