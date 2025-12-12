@@ -170,6 +170,87 @@
   margin-top: 0.25rem;
 }
 
+/* Enhanced stat card with progress bar */
+.stat-card.enhanced {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+}
+
+.stat-card.enhanced .stat-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-primary, #007bff);
+}
+
+.stat-bar {
+  width: 80%;
+  height: 8px;
+  background: var(--color-bg-secondary, #e9ecef);
+  border-radius: 999px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary, #007bff), #5ab0ff);
+  transition: width 0.5s ease;
+}
+
+/* Recent scores list (compact) */
+.recent-scores {
+  background: var(--color-bg-primary, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.recent-scores h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.recent-scores ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recent-scores .rs-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.9rem;
+  color: var(--color-text-primary, #333);
+}
+
+.recent-scores .rs-item .rs-title {
+  font-weight: 600;
+  color: var(--color-text-primary, #333);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-scores .rs-item .rs-score {
+  font-weight: 700;
+  color: var(--color-primary, #007bff);
+}
+
+.recent-scores .empty {
+  color: var(--color-text-secondary, #666);
+  padding: 0.5rem 0;
+}
+
 /* Action Buttons Section */
 .quiz-actions {
   display: flex;
@@ -354,7 +435,7 @@
 }
 
 .plan-preview-body {
-  max-height: 40vh;
+  max-height: 30vh;
   overflow-y: auto;
   padding: 0.75rem;
   background: var(--color-bg-secondary, #f8f9fa);
@@ -366,6 +447,50 @@
 
 .plan-preview-body.empty {
   opacity: 0.7;
+}
+
+/* Styles for rendered plan markdown */
+.plan-markdown-preview p {
+  margin: 0 0 0.75rem 0;
+  line-height: 1.4;
+}
+
+.plan-markdown-preview h1,
+.plan-markdown-preview h2,
+.plan-markdown-preview h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-primary, #333);
+}
+
+.plan-markdown-preview ul,
+.plan-markdown-preview ol {
+  margin: 0 0 0.75rem 1rem;
+}
+
+.plan-markdown-preview pre {
+  background: #f4f6f8;
+  padding: 0.75rem;
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.plan-markdown-preview table.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+}
+
+.plan-markdown-preview table.md-table th,
+.plan-markdown-preview table.md-table td {
+  border: 1px solid var(--color-border, #e0e0e0);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.plan-markdown-preview code {
+  background: rgba(0,0,0,0.05);
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
 .new-quiz-form h2 {
