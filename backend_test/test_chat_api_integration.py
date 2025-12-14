@@ -26,6 +26,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from server import app
 import chat_manager as cm
 
+try:
+    import backend.chat_manager as bcm  # type: ignore
+except Exception:
+    bcm = None
+
 
 @pytest.fixture
 def temp_chat_store():
@@ -40,6 +45,8 @@ def client(temp_chat_store):
     """Create a test client with temporary storage."""
     # Reset the global chat manager with temp directory
     cm._chat_manager = cm.ChatManager(store_dir=temp_chat_store)
+    if bcm is not None:
+        bcm._chat_manager = cm._chat_manager
     
     # Set up Flask test client
     app.config['TESTING'] = True
@@ -52,6 +59,8 @@ def client(temp_chat_store):
     
     # Cleanup
     cm._chat_manager = None
+    if bcm is not None:
+        bcm._chat_manager = None
     os.environ.pop('DISABLE_AUTH', None)
 
 
@@ -59,6 +68,8 @@ def client(temp_chat_store):
 def auth_client(temp_chat_store):
     """Create a test client with authentication enabled."""
     cm._chat_manager = cm.ChatManager(store_dir=temp_chat_store)
+    if bcm is not None:
+        bcm._chat_manager = cm._chat_manager
     app.config['TESTING'] = True
     
     # Enable auth
@@ -68,6 +79,8 @@ def auth_client(temp_chat_store):
         yield client
     
     cm._chat_manager = None
+    if bcm is not None:
+        bcm._chat_manager = None
     os.environ.pop('DISABLE_AUTH', None)
 
 

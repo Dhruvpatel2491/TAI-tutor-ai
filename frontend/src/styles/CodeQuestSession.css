@@ -1,0 +1,548 @@
+.codequest-session {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.codequest-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.codequest-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+}
+
+.codequest-panel-title-row .codequest-panel-title {
+  background: transparent;
+  border-bottom: none;
+  padding-right: 0;
+}
+
+.codequest-collapse-arrow {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  color: var(--color-text-secondary, #666);
+}
+
+.codequest-collapse-arrow:hover {
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-collapse-icon {
+  display: inline-block;
+  width: 1.25rem;
+  text-align: center;
+  font-weight: 800;
+}
+
+.codequest-left-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-secondary, #f8f9fa);
+}
+
+.codequest-left-header-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.codequest-left-header-title {
+  font-weight: 800;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-left-header-meta {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.codequest-left-header-sep {
+  color: var(--color-text-secondary, #999);
+}
+
+.codequest-badge {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.codequest-body {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  flex: 19;
+}
+
+.codequest-left,
+.codequest-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.codequest-left {
+  flex: 2;
+}
+
+.codequest-right {
+  flex: 4;
+  gap: 0.75rem;
+}
+
+.codequest-panel {
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--color-bg-primary, #fff);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.codequest-panel-title {
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  font-weight: 700;
+}
+
+.codequest-description {
+  padding: 0.75rem 1rem;
+  overflow: auto;
+}
+
+.codequest-desc-title {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.codequest-desc-text {
+  white-space: pre-wrap;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-editor {
+  padding: 0.75rem;
+}
+
+.codequest-actions {
+  padding: 0 0.75rem 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.codequest-output {
+  border-top: 1px solid var(--color-border, #e0e0e0);
+}
+
+.codequest-output-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.codequest-pre {
+  background: var(--color-bg-secondary, #f8f9fa);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.6rem;
+  white-space: pre-wrap;
+  margin: 0.25rem 0 0;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.codequest-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.codequest-card {
+  text-align: left;
+  border: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-primary, #fff);
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.codequest-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.codequest-card.tone-passed {
+  border-color: rgba(46, 160, 67, 0.45);
+  background: rgba(46, 160, 67, 0.08);
+}
+
+.codequest-card.tone-failed {
+  border-color: rgba(220, 53, 69, 0.45);
+  background: rgba(220, 53, 69, 0.06);
+}
+
+.codequest-card.tone-started {
+  border-color: rgba(255, 193, 7, 0.55);
+  background: rgba(255, 193, 7, 0.08);
+}
+
+.codequest-card.active {
+  border-color: var(--color-primary, #007bff);
+}
+
+.codequest-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.codequest-card-num {
+  font-weight: 800;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-card-status {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.codequest-card-title {
+  margin-top: 0.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #333);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codequest-left-actions {
+  padding: 0.75rem;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.codequest-left-testcases {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.codequest-left-subtitle {
+  font-weight: 700;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-testcase-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.codequest-testcase-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-primary, #fff);
+}
+
+.codequest-testcase-item.passed {
+  border-color: rgba(46, 160, 67, 0.45);
+  background: rgba(46, 160, 67, 0.06);
+}
+
+.codequest-testcase-item.failed {
+  border-color: rgba(220, 53, 69, 0.45);
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.codequest-testcase-name {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codequest-testcase-status {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #666);
+}
+
+.codequest-session-meta {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.codequest-session-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text-primary, #333);
+}
+
+.codequest-session-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.codequest-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 980px) {
+  .codequest-body {
+    flex-direction: column;
+  }
+  .codequest-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Replicated Quiz.css behaviors mapped to CodeQuest classnames
+   (avoid using .quiz-* selectors; keep CodeQuest styles self-contained) */
+
+/* Page container sizing and centering */
+.codequest-session {
+  max-width: var(--window-width);
+  margin: 0 auto;
+  height: calc(100vh - 80px);
+  width: var(--window-width);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide scrollbars but allow scrolling inside panes */
+.codequest-session::-webkit-scrollbar,
+.codequest-body::-webkit-scrollbar {
+  display: none;
+}
+.codequest-session,
+.codequest-body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Reusable scroll pane for CodeQuest panels */
+.codequest-scroll-pane {
+  overflow-y: auto;
+}
+
+/* List/header button icon styling (mapped from .btn-icon) */
+.codequest-btn-icon {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--color-text-secondary, #666);
+  transition: color 0.2s;
+  padding: 0.25rem;
+  line-height: 1;
+}
+.codequest-btn-icon:hover {
+  color: var(--color-primary, #007bff);
+}
+
+/* Stats card visuals and compact stat bar */
+.codequest-stats,
+.codequest-stat-card {
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-radius: 8px;
+  padding: 1rem 0.75rem;
+  text-align: center;
+  border: 1px solid var(--color-border, #e0e0e0);
+}
+.codequest-stat-card .stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-primary, #007bff);
+}
+.codequest-stat-card .stat-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #666);
+  margin-top: 0.25rem;
+}
+
+.codequest-stat-bar {
+  width: 80%;
+  height: 8px;
+  background: var(--color-bg-secondary, #e9ecef);
+  border-radius: 999px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+.codequest-stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary, #007bff), #5ab0ff);
+  transition: width 0.5s ease;
+}
+
+/* Recent scores / compact list */
+.codequest-recent-scores {
+  background: var(--color-bg-primary, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.codequest-recent-scores h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.codequest-recent-scores ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ----- Visual polish: shadows, buttons, hover states, spacing ----- */
+
+/* soft app background to lift panels */
+.codequest-session {
+  background: linear-gradient(180deg, var(--color-app-bg, #fbfdff), #ffffff);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.codequest-panel {
+  /* softer border and a subtle elevated card appearance */
+  border: 1px solid rgba(18, 18, 18, 0.04);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.codequest-panel:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.codequest-card {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  background: linear-gradient(180deg, var(--color-bg-primary, #fff), #fcfdff);
+}
+
+.codequest-card:hover:not(:disabled) {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 24px rgba(11, 21, 40, 0.06);
+  border-color: rgba(0, 123, 255, 0.12);
+}
+
+/* nicer pre/code blocks */
+.codequest-pre {
+  background: linear-gradient(180deg, #fbfbfb, #f6f8fb);
+  border-radius: 10px;
+  padding: 0.8rem;
+  border: 1px solid rgba(16, 24, 40, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* Buttons used in CodeQuest actions */
+.codequest-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(16,24,40,0.06);
+  background: var(--color-bg-primary, #fff);
+  cursor: pointer;
+  transition: background 150ms ease, transform 120ms ease, box-shadow 150ms ease;
+}
+
+.codequest-actions .btn-primary {
+  background: linear-gradient(180deg, var(--color-primary, #007bff), #0069e6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 18px rgba(0,123,255,0.12);
+}
+
+.codequest-actions .btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+.codequest-actions .btn-secondary {
+  background: transparent;
+  color: var(--color-text-primary, #222);
+}
+
+/* badges with subtle depth */
+.codequest-badge {
+  box-shadow: 0 2px 6px rgba(11,21,40,0.04);
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+}
+
+/* left header emphasis */
+.codequest-left-header {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(16,24,40,0.04);
+}
+
+/* Improve typography rhythm for titles */
+.codequest-title {
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+}
+
+/* subtle divider for sections */
+.codequest-panel + .codequest-panel {
+  margin-top: 0.75rem;
+}
+
+/* make status colors a little stronger but soft */
+.codequest-card.tone-passed {
+  border-color: rgba(46, 160, 67, 0.6);
+  background: linear-gradient(180deg, rgba(46,160,67,0.04), rgba(46,160,67,0.02));
+}
+.codequest-card.tone-failed {
+  border-color: rgba(220, 53, 69, 0.6);
+  background: linear-gradient(180deg, rgba(220,53,69,0.03), rgba(220,53,69,0.01));
+}
+
+/* responsive tweaks: tighten spacing on narrow screens */
+@media (max-width: 980px) {
+  .codequest-session {
+    padding: 0.5rem;
+    border-radius: 8px;
+  }
+  .codequest-panel {
+    border-radius: 10px;
+  }
+}
+

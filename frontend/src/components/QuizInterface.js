@@ -466,10 +466,12 @@ function QuizInterface({ quiz, onComplete, onExit }) {
                 const isAnsweredPill = answeredQuestions.has(q.question_id);
                 const response = quizState.user_responses?.find(r => r.question_id === q.question_id);
                 const isCorrectPill = response?.is_correct;
-                
                 let pillClass = 'question-pill';
                 if (isCurrentPill) pillClass += ' current';
                 if (isAnsweredPill) {
+                                  // console.log(isCorrectPill);
+
+                  console.log(`Question ${idx + 1} answered: ${isCorrectPill ? 'correct' : 'incorrect'}`);
                   pillClass += isCorrectPill ? ' correct' : ' incorrect';
                 }
                 

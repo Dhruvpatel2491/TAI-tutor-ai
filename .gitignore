@@ -7,8 +7,8 @@ backend_test/__pycache__
 backend/vector_index_store/*
 
 ## Runtime / local persistence (do not commit)
-# user_data/
-# vector_index_store/
+user_data/
+vector_index_store/
 
 test/__pycache__
 
@@ -23,3 +23,4 @@ z-script
 
 frontend/build
 frontend/build/*
+

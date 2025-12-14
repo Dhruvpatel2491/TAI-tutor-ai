@@ -1297,9 +1297,21 @@ def codequest_create_session():
 	if not track:
 		return jsonify({"error": "missing 'track'"}), 400
 	try:
-		session = codequest_manager.get_codequest_manager().create_session(user_id=user_id, track=track)
-		current = codequest_manager.get_codequest_manager().get_current_challenge_public(session)
-		return jsonify({"session": session, "current_challenge": current}), 201
+		session = codequest_manager.get_codequest_manager().create_session(
+			user_id=user_id,
+			track=track,
+			description=payload.get("description"),
+			plan_reference=payload.get("plan_reference") or payload.get("plan_reference_path") or payload.get("planReference"),
+			plan_text=payload.get("plan_text") or payload.get("planText"),
+			difficulty=payload.get("difficulty"),
+			concepts=payload.get("concepts") if isinstance(payload.get("concepts"), list) else None,
+			num_challenges=int(payload.get("num_challenges")) if str(payload.get("num_challenges") or "").isdigit() else None,
+			use_llm_generator=bool(payload.get("use_llm_generator")),
+		)
+		mgr = codequest_manager.get_codequest_manager()
+		current = mgr.get_current_challenge_public(session)
+		challenges = mgr.get_challenges_public(session)
+		return jsonify({"session": session, "current_challenge": current, "challenges": challenges}), 201
 	except ValueError as e:
 		return jsonify({"error": str(e)}), 400
 	except Exception as e:
@@ -1322,12 +1334,14 @@ def codequest_list_sessions():
 		completed = sum(1 for s in sessions if s.get("status") == "completed")
 		active = sum(1 for s in sessions if s.get("status") == "active")
 		attempts = sum(int(s.get("attempt_count", 0) or 0) for s in sessions)
+		question_stats = codequest_manager.get_codequest_manager().compute_user_question_stats(user_id)
 		stats = {
 			"total_sessions": total,
 			"completed_sessions": completed,
 			"active_sessions": active,
 			"total_attempts": attempts,
 			"completion_rate": (completed / total) if total else 0.0,
+			"question_stats": question_stats,
 		}
 		return jsonify({"sessions": sessions, "stats": stats}), 200
 	except Exception as e:
@@ -1344,13 +1358,88 @@ def codequest_get_session(session_id: str):
 	if not user_id:
 		return jsonify({"error": "could not determine user_id"}), 400
 	try:
-		session = codequest_manager.get_codequest_manager().get_session(user_id, session_id)
+		mgr = codequest_manager.get_codequest_manager()
+		session = mgr.get_session(user_id, session_id)
 		if not session:
 			return jsonify({"error": "session not found"}), 404
-		current = codequest_manager.get_codequest_manager().get_current_challenge_public(session)
-		return jsonify({"session": session, "current_challenge": current}), 200
+		current = mgr.get_current_challenge_public(session)
+		challenges = mgr.get_challenges_public(session)
+		view_mode = bool(session.get("status") != "active")
+		solutions = mgr.get_solution_map(user_id, session, include_all=view_mode)
+		return jsonify({
+			"session": session,
+			"current_challenge": current,
+			"challenges": challenges,
+			"solutions": solutions,
+			"view_mode": view_mode,
+		}), 200
 	except Exception as e:
 		logger.exception("Failed to get CodeQuest session")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions/<session_id>/finish", methods=["POST"])
+def codequest_finish_session(session_id: str):
+	"""Finish a CodeQuest session by submitting/evaluating all remaining challenges."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	try:
+		mgr = codequest_manager.get_codequest_manager()
+		stats = mgr.finish_session(user_id=user_id, session_id=session_id)
+		session = mgr.get_session(user_id, session_id)
+		current = mgr.get_current_challenge_public(session) if session else None
+		challenges = mgr.get_challenges_public(session) if session else []
+		view_mode = True
+		solutions = mgr.get_solution_map(user_id, session, include_all=True) if session else {}
+		return jsonify({
+			"stats": stats,
+			"session": session,
+			"current_challenge": current,
+			"challenges": challenges,
+			"solutions": solutions,
+			"view_mode": view_mode,
+		}), 200
+	except FileNotFoundError as e:
+		return jsonify({"error": str(e)}), 404
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to finish CodeQuest session")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions/<session_id>/exit", methods=["POST"])
+def codequest_exit_session(session_id: str):
+	"""Exit a CodeQuest session and mark it completed/incomplete based on submissions."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+	try:
+		mgr = codequest_manager.get_codequest_manager()
+		session = mgr.exit_session(user_id=user_id, session_id=session_id)
+		session = mgr.get_session(user_id, session_id) or session
+		current = mgr.get_current_challenge_public(session) if session else None
+		challenges = mgr.get_challenges_public(session) if session else []
+		view_mode = bool(session.get("status") != "active") if session else True
+		solutions = mgr.get_solution_map(user_id, session, include_all=True) if session else {}
+		return jsonify({
+			"session": session,
+			"current_challenge": current,
+			"challenges": challenges,
+			"solutions": solutions,
+			"view_mode": view_mode,
+		}), 200
+	except FileNotFoundError as e:
+		return jsonify({"error": str(e)}), 404
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to exit CodeQuest session")
 		return jsonify({"error": str(e)}), 500
 
 
@@ -1385,6 +1474,74 @@ def codequest_submit_solution(session_id: str):
 		return jsonify({"error": str(e)}), 500
 
 
+@app.route("/codequest/sessions/<session_id>/navigate", methods=["POST"])
+def codequest_navigate_session(session_id: str):
+	"""Navigate within a CodeQuest session.
+
+	POST /codequest/sessions/<id>/navigate
+	JSON: {"index": 0} or {"direction": "next"|"prev"} or {"challenge_id": "..."}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+
+	payload = request.get_json(force=True, silent=True) or {}
+	index = payload.get("index")
+	direction = payload.get("direction")
+	challenge_id = payload.get("challenge_id")
+	try:
+		idx = int(index) if isinstance(index, int) or (isinstance(index, str) and index.isdigit()) else None
+		mgr = codequest_manager.get_codequest_manager()
+		session = mgr.navigate_session(
+			user_id=user_id,
+			session_id=session_id,
+			index=idx,
+			direction=direction,
+			challenge_id=challenge_id,
+		)
+		current = mgr.get_current_challenge_public(session)
+		challenges = mgr.get_challenges_public(session)
+		return jsonify({"session": session, "current_challenge": current, "challenges": challenges}), 200
+	except FileNotFoundError as e:
+		return jsonify({"error": str(e)}), 404
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to navigate CodeQuest session")
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/codequest/sessions/<session_id>/draft", methods=["POST"])
+def codequest_save_draft(session_id: str):
+	"""Persist a per-challenge code draft for a session."""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	if not user_id:
+		return jsonify({"error": "could not determine user_id"}), 400
+
+	payload = request.get_json(force=True, silent=True) or {}
+	challenge_id = payload.get("challenge_id")
+	code = payload.get("code")
+	if not challenge_id or not isinstance(code, str):
+		return jsonify({"error": "missing 'challenge_id' or 'code'"}), 400
+	try:
+		out = codequest_manager.get_codequest_manager().save_draft(
+			user_id=user_id,
+			session_id=session_id,
+			challenge_id=str(challenge_id),
+			code=code,
+		)
+		return jsonify(out), 200
+	except FileNotFoundError as e:
+		return jsonify({"error": str(e)}), 404
+	except ValueError as e:
+		return jsonify({"error": str(e)}), 400
+	except Exception as e:
+		logger.exception("Failed to save CodeQuest draft")
+		return jsonify({"error": str(e)}), 500
 ### Planner API (simple, no-auth endpoints for prototyping)
 @app.route("/plans", methods=["POST"])  # create_plan
 def create_plan():
