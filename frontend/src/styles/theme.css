@@ -1,110 +1,239 @@
 /* Central theme and small utility classes for the frontend */
+/* TAI Tutor AI - Warm cohesive color palette */
 :root {
+  --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
-  --window-width: 85vw;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --window-width: 90vw;
+  
+  /* App container sizing */
+  --app-width: 95vw;
+  --app-height: 95vh;
+  
+  /* Core background colors - new palette */
+  --color-bg-page: #F7F7F6;       /* light neutral page background */
+  --color-bg-primary: #FFFFFF;    /* card surface */
+  --color-bg-secondary: #FBFAF6;  /* subtle warm alt surface */
+  --color-bg-tertiary: #DECC9E;   /* warm sand - muted surfaces */
+  
+  /* Surface aliases for consistency */
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #FBFAF6;
+  
+  /* Primary brand color - mid-teal */
+  --color-primary: #53A2A7;
+  --color-primary-hover: #30838C;
+  --color-primary-light: #E8F4F4;
+  --color-primary-dark: #30838C;
+  
+  /* Accent colors from new palette */
+  --color-accent-1: #A6BB95;      /* soft green/olive - secondary accent */
+  --color-accent-2: #DECC9E;      /* warm sand - highlights */
+  --color-danger: #DC2626;        /* standard red for errors */
+  
+  /* Secondary accent */
+  --color-secondary: #6B7280;
+  --color-secondary-hover: #4B5563;
+  
+  /* Success/Error/Warning mapped to palette */
+  --color-success: #53A2A7;       /* using primary teal for success */
+  --color-success-light: #E8F4F4;
+  --color-error: #DC2626;         /* standard red */
+  --color-error-light: #FEE2E2;
+  --color-warning: #DECC9E;       /* warm sand */
+  --color-warning-light: #FEF3E2;
+  
+  /* Text colors */
+  --color-text-primary: #0F1724;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+  
+  /* Border colors */
+  --color-border: #E8E9EB;
+  --color-border-hover: #D1D5DB;
+  
+  /* Shadows - soft neutral */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 36, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 36, 0.08), 0 2px 4px -1px rgba(15, 23, 36, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 36, 0.1), 0 4px 6px -2px rgba(15, 23, 36, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 36, 0.1), 0 10px 10px -5px rgba(15, 23, 36, 0.04);
+  --shadow-float: 0 8px 30px rgba(15, 23, 36, 0.12);
+  --shadow-soft: 0 8px 22px rgba(15, 23, 36, 0.06);
+  
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
 }
 
-.max-w-520 { max-width: 50vw; margin: 0 auto; }
+.max-w-520 { max-width: 520px; margin: 0 auto; }
 .max-w-85vw { max-width: var(--window-width); margin: 0 auto; }
 
 .ml-8 { margin-left: 8px; }
 .mt-6 { margin-top: 6px; }
 .mt-12 { margin-top: 12px; }
 
-.text-danger { color: crimson; }
-.text-success { color: green; }
+.text-danger { color: var(--color-error); }
+.text-success { color: var(--color-success); }
 .small-text { font-size: 12px; }
 
 .word-break { word-break: break-all; }
 .mr-12 { margin-right: 12px; }
 
-.header-flex { display: flex; justify-content: space-between; padding: 12px; align-items: center; }
+.header-flex { display: flex; justify-content: space-between; padding: var(--spacing-md) var(--spacing-lg); align-items: center; }
 
 .link-mr { margin-right: 12px; }
-.welcome-mr { margin-right: 12px; }
+.welcome-mr { margin-right: 12px; color: var(--color-text-secondary); font-size: 14px; }
+
+/* Floating Glass Navigation Bar */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: transparent;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--window-width);
+  margin: 0 auto;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 228, 237, 0.6);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-float);
+  gap: var(--spacing-lg);
+}
+
+/* Logo and brand area */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.header-logo {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.header-title span {
+  color: var(--color-primary);
+}
 
 /* Tabs for header navigation */
 .tabs {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-xs);
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
 .tab {
-  padding: 8px 12px;
-  border-radius: 6px 6px 0 0;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-full);
   background: transparent;
-  color: inherit;
+  color: var(--color-text-secondary);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  border: none;
+  position: relative;
 }
 
 .tab:hover {
-  background: rgba(0,0,0,0.03);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
 }
 
 .tab-active {
-  border-bottom-color: var(--primary);
-  font-weight: 700;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(90, 156, 181, 0.3);
 }
 
-/* Header inner container aligns header content with main page content */
-.header-inner {
+/* Header user section */
+.header-user {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  gap: var(--spacing-md);
 }
 
-/* Improve tab visuals: subtle shadow and smoother transitions */
-.tab {
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+.header-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
 }
 
-.tab-active {
-  color: var(--primary);
-  transform: translateY(1px);
-}
-
-/* Make header slightly elevated to read better on light backgrounds */
-.app-header {
-  background: transparent;
-  box-shadow: none;
-  padding-top: 18px;
-  padding-bottom: 18px;
-}
-
-/* style the inner header container as a pill to match modern landing layouts */
-.header-inner {
-  background: var(--surface);
-  padding: 8px 14px;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+.header-status-dot.offline {
+  background: var(--color-text-muted);
 }
 
 /* main padding - make pages breathe like a hero layout */
 .main-padding {
-  padding: 48px 12px;
+  padding: var(--spacing-2xl) var(--spacing-lg);
 }
+
 .container {
   width: var(--window-width);
+  max-width: var(--window-width);
+  margin: 0 auto;
+  padding: var(--spacing-lg);
 }
+
 /* container h2 hero-like style */
 .container > h2 {
   text-align: center;
-  font-size: clamp(1.6rem, 2.4vw, 2.6rem);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
   font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 8px;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
 }
 
 .container > p {
   text-align: center;
-  color: var(--muted);
+  color: var(--color-text-secondary);
+  max-width: 600px;
+  margin: 0 auto var(--spacing-xl);
+  line-height: 1.6;
 }
 
 /* Home page hero layout: center horizontally, align to top with breathing room */
@@ -113,8 +242,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 10px;
-  gap: 18px;
+  padding-top: var(--spacing-xl);
+  gap: var(--spacing-xl);
 }
 
 /* Planner page should be a larger panel centered and occupy most of the width */
@@ -125,7 +254,107 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-md);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-xl);
+}
+
+.planner-panel h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.planner-panel h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.planner-panel input[type="text"],
+.planner-panel input:not([type]),
+.planner-panel textarea {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.planner-panel input:focus,
+.planner-panel textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+}
+
+.planner-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.planner-panel li {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.planner-panel li:hover {
+  background: var(--color-bg-secondary);
+}
+
+.planner-panel li.selected,
+.planner-panel li[style*="background: #f6f9ff"] {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-primary);
+}
+
+.planner-panel .plan-preview {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.planner-panel .status-message {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-sm);
+}
+
+.planner-panel .status-message.success {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid rgba(90, 156, 181, 0.3);
+}
+
+.planner-panel .status-message.error {
+  background: var(--color-error-light);
+  color: var(--color-danger);
+  border: 1px solid rgba(250, 104, 104, 0.3);
+}
+
+.planner-panel .status-message.info {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid rgba(250, 206, 104, 0.4);
 }
 
 @media (max-width: 900px) {
@@ -133,9 +362,10 @@
 }
 
 @media (max-width: 640px) {
-  .tabs { gap: 6px; }
-  .tab { padding: 6px 10px; }
+  .tabs { gap: 4px; flex-wrap: wrap; }
+  .tab { padding: 6px 10px; font-size: 13px; }
   .welcome-mr { display: none; }
+  .header-title { font-size: 16px; }
 }
 
 /* Modal helper already has classes in index.css (.modal-overlay, .modal-content) */
