@@ -112,7 +112,7 @@ def _user_file_path(email: str) -> Path:
     return _ROOT_USER_DIR / fn
 
 
-def register_user(email: str, password: str) -> dict:
+def register_user(email: str, password: str, name: str = "") -> dict:
     """Register a user by saving a salted PBKDF2-SHA256 password hash to disk.
 
     Returns a dict with stored user metadata. Raises ValueError on invalid input
@@ -120,7 +120,10 @@ def register_user(email: str, password: str) -> dict:
     """
     if not email or not password:
         raise ValueError("email and password required")
+    # if not name or not name.strip():
+    #     raise ValueError("name is required")
     email = email.strip().lower()
+    name = name.strip()
     p = _user_file_path(email)
     if p.exists():
         raise ValueError("user already exists")
@@ -128,6 +131,7 @@ def register_user(email: str, password: str) -> dict:
     salt = os.urandom(16)
     dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
     payload = {
+        "name": name,
         "email": email,
         "salt": base64.b64encode(salt).decode("utf-8"),
         "password_hash": base64.b64encode(dk).decode("utf-8"),

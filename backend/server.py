@@ -907,6 +907,7 @@ def auth_register():
 	payload = request.get_json(force=True, silent=True) or {}
 	email = payload.get("email") or payload.get("user_id")
 	password = payload.get("password")
+	name = payload.get("name", "N/A")
 	# For developer convenience (tests/dev), allow a simple register flow when
 	# only a user_id is provided and no password. In that case, issue a JWT
 	# directly without persisting a password. This keeps the endpoint usable
@@ -917,9 +918,11 @@ def auth_register():
 		# dev/test flow: return a token without creating a persisted account
 		token = auth.create_jwt_for_user(email)
 		return jsonify({"token": token}), 200
+	# if not name or not name.strip():
+	# 	return jsonify({"error": "name is required"}), 400
 	try:
 		# register persists to disk via backend/auth.register_user
-		auth.register_user(email, password)
+		auth.register_user(email, password, name)
 	except ValueError as e:
 		# user exists or invalid input
 		return jsonify({"error": str(e)}), 409

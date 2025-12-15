@@ -166,11 +166,11 @@ function uuidv4() {
 }
 
 export const authService = {
-  async register(email, password, remember = false) {
+  async register(email, password, name = '', remember = false) {
     // Try backend register first (if backend URL configured). If backend not
     // available, fall back to local demo storage behavior.
     const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
-    const payload = { email: email.trim().toLowerCase(), password };
+    const payload = { email: email.trim().toLowerCase(), password, name: name.trim() };
     if (base) {
       try {
         const res = await fetch(`${base}/auth/register`, {
@@ -199,7 +199,7 @@ export const authService = {
     if (!users[lower]) {
       const salt = makeSalt();
       const passwordHash = await derivePasswordHash(password, salt);
-      users[lower] = { email: lower, salt, passwordHash, createdAt: now };
+      users[lower] = { name: name.trim(), email: lower, salt, passwordHash, createdAt: now };
       saveUsers(users);
     } else {
       throw new Error('User already exists (local)');
@@ -258,7 +258,8 @@ export const authService = {
     const users = loadUsers();
     // console.log('authService.getCurrentUser: users[session.email]', Object.values(users)[0]);
     const u = Object.values(users)[0];
-    return u ? { email: u.email, createdAt: u.createdAt } : null;
+    // console.table('authService.getCurrentUser: u', u);
+    return u ? { email: u.email, createdAt: u.createdAt , name: u?.name } : null;
   },
 
   getSessionToken() {

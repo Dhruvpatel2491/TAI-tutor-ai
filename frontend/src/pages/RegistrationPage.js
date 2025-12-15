@@ -1,35 +1,47 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-// backend HTTP helpers are used by authService; no direct apiPost usage here
 import { authService } from '../services/authService';
-
-// Token key is managed by services/auth
 
 function validateEmail(email) {
   return /\S+@\S+\.\S+/.test(email);
 }
 
-const LoginPage = () => {
+const RegistrationPage = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const errorRef = useRef(null);
 
-  const submit = async (e) => {
-    // Submit handles explicit login (form submit)
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
+    // Validation
+    if (!name.trim()) {
+      setError('Please enter your name.');
+      errorRef.current?.focus();
+      return;
+    }
+
     if (!validateEmail(email)) {
       setError('Please enter a valid email.');
       errorRef.current?.focus();
       return;
     }
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
+      errorRef.current?.focus();
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       errorRef.current?.focus();
       return;
     }
@@ -37,34 +49,40 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Explicit login flow
-      const token = await authService.login(email, password, remember);
+      const token = await authService.register(email, password, name, remember);
       if (!token) throw new Error('No token returned from server');
-      // Ensure persisted
-      try { if (!authService.getToken()) authService.setToken(token, remember); } catch (e) {}
+      
+      // Ensure token is persisted
+      try { 
+        if (!authService.getToken()) authService.setToken(token, remember); 
+      } catch (e) {}
 
-    // Save a minimal local user profile so HomePage and other components
-    // can show a lightweight profile even when server doesn't return one.
-    try {
-      const users = authService._internal.loadUsers();
-      const lower = email.trim().toLowerCase();
-      if (!users[lower]) {
-        users[lower] = { email: lower, createdAt: new Date().toISOString() };
-        authService._internal.saveUsers(users);
-      } else {
-        // update last-seen
-        users[lower].lastSeen = new Date().toISOString();
-        authService._internal.saveUsers(users);
+      // Save a minimal local user profile
+      try {
+        const users = authService._internal.loadUsers();
+        const lower = email.trim().toLowerCase();
+        if (!users[lower]) {
+          users[lower] = { 
+            name: name.trim(),
+            email: lower, 
+            createdAt: new Date().toISOString() 
+          };
+          authService._internal.saveUsers(users);
+        } else {
+          users[lower].lastSeen = new Date().toISOString();
+          if (name.trim()) {
+            users[lower].name = name.trim();
+          }
+          authService._internal.saveUsers(users);
+        }
+      } catch (e) {
+        // Non-fatal: continue even if local profile save fails
       }
-    } catch (e) {
-      // Non-fatal: continue even if local profile save fails
-    }
 
-    // Navigate after token is persisted and local user saved
-    navigate('/home');
-    navigate(0); // force reload to update auth-dependent components
+      // Navigate to login page after successful registration
+      navigate('/login');
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Registration failed');
       errorRef.current?.focus();
       setLoading(false);
     }
@@ -84,14 +102,29 @@ const LoginPage = () => {
         </div>
 
         <h1 className="auth-title">TAI - Tutor AI</h1>
-        <p className="auth-subtitle">Sign in to continue learning</p>
+        <p className="auth-subtitle">Create your account</p>
 
-        <form onSubmit={submit} aria-describedby="login-error" noValidate>
+        <form onSubmit={handleSubmit} aria-describedby="registration-error" noValidate>
           {error && (
-            <div role="alert" id="login-error" tabIndex={-1} ref={errorRef} className="auth-error">
+            <div role="alert" id="registration-error" tabIndex={-1} ref={errorRef} className="auth-error">
               {error}
             </div>
           )}
+
+          <div className="form-row">
+            <label htmlFor="name">Name</label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your full name"
+              required
+              aria-required="true"
+              autoFocus
+              disabled={loading}
+            />
+          </div>
 
           <div className="form-row">
             <label htmlFor="email">Email</label>
@@ -103,7 +136,6 @@ const LoginPage = () => {
               placeholder="you@example.com"
               required
               aria-required="true"
-              autoFocus
               disabled={loading}
             />
           </div>
@@ -116,6 +148,20 @@ const LoginPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 characters"
+              required
+              aria-required="true"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-row">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter your password"
               required
               aria-required="true"
               disabled={loading}
@@ -136,13 +182,13 @@ const LoginPage = () => {
 
           <div className="auth-buttons">
             <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Logging in...' : 'Log in'}
+              {loading ? 'Registering...' : 'Register'}
             </button>
           </div>
         </form>
 
         <p className="auth-footer">
-          Don't have an account? <Link to="/register" className="auth-link">Register here</Link>
+          Already have an account? <Link to="/login" className="auth-link">Sign in here</Link>
         </p>
 
         <p className="auth-footer">
@@ -154,4 +200,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default RegistrationPage;

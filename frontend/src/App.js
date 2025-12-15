@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import RegistrationPage from './pages/RegistrationPage';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import QuizPage from './pages/QuizPage';
@@ -16,6 +17,7 @@ function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [effectiveEmail, setEffectiveEmail] = useState(null);
+  const [effectiveName, setEffectiveName] = useState(null);
   const [hasToken, setHasToken] = useState(Boolean(authService.getToken()));
 
   useEffect(() => {
@@ -27,10 +29,14 @@ function Header() {
       if (!mounted) return;
       if (server && server.email) {
         setEffectiveEmail(server.email);
+        setEffectiveName(server.name);
+        console.log('Using server user for effectiveEmail:', server);
       } else {
         const localUser = authService.getCurrentUser();
-        if (localUser && localUser.email) setEffectiveEmail(localUser.email);
-        else {
+        if (localUser && localUser.email) {
+          setEffectiveEmail(localUser.email);
+          setEffectiveName(localUser.name);
+        } else {
           const dec = authService.decodeToken(authService.getToken());
           setEffectiveEmail(dec ? (dec.sub || dec.email || dec.email) : null);
         }
@@ -102,7 +108,7 @@ function Header() {
 
         {/* User Info */}
         <div className="header-user">
-          <span className="welcome-mr">{effectiveEmail}</span>
+          <span className="welcome-mr">{effectiveName || effectiveEmail}</span>
           <span className={`header-status-dot ${hasToken ? '' : 'offline'}`} title={hasToken ? 'Connected' : 'Offline'} />
           <button type="button" className="btn btn-sm secondary" onClick={logout}>Logout</button>
         </div>
@@ -120,6 +126,7 @@ function App() {
           <div className="output">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegistrationPage />} />
               <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/planner" element={<ProtectedRoute><PlannerPanel /></ProtectedRoute>} />
