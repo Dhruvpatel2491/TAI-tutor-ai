@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
+// import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import AdminPasswordModal from '../components/AdminPasswordModal';
 import '../styles/SettingsPage.css';
 
 const SettingsPage = () => {
+  // const navigate = useNavigate();
   const [userStats, setUserStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   useEffect(() => {
     fetchUserStats();
@@ -60,12 +64,27 @@ const SettingsPage = () => {
     );
   }
 
+  const handleAdminClick = () => {
+    setShowAdminModal(true);
+  };
+
   return (
     <div className="settings-page">
       <div className="settings-container">
         <div className="settings-header">
-          <h1>Settings</h1>
-          <p className="settings-subtitle">View your profile and activity statistics</p>
+          <div className="header-content">
+            <div className="header-text">
+              <h1>Settings</h1>
+              <p className="settings-subtitle">View your profile and activity statistics</p>
+            </div>
+            <button className="admin-access-btn" onClick={handleAdminClick} title="Admin Access">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                <path d="M12 12c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2s2 .9 2 2v2c0 1.1-.9 2-2 2z" opacity="0.5"/>
+              </svg>
+              <span className="admin-text">Admin</span>
+            </button>
+          </div>
         </div>
 
         {/* Profile Section */}
@@ -165,6 +184,14 @@ const SettingsPage = () => {
           </div>
         </section>
       </div>
+
+      {/* Admin Password Modal */}
+      {showAdminModal && (
+        <AdminPasswordModal
+          onClose={() => setShowAdminModal(false)}
+          onSuccess={() => setShowAdminModal(false)}
+        />
+      )}
     </div>
   );
 };

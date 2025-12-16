@@ -108,6 +108,13 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# Register admin blueprint
+try:
+	from backend.endpoints_admin import admin_bp
+except ImportError:
+	from endpoints_admin import admin_bp
+app.register_blueprint(admin_bp)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend.api")
 

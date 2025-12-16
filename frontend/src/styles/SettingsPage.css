@@ -3,7 +3,7 @@
 .settings-page {
   width: 100%;
   min-height: 80vh;
-  /* padding: var(--spacing-xl) var(--spacing-lg); */
+  padding: var(--spacing-xl) var(--spacing-lg);
   background: var(--color-bg-page);
 }
 
@@ -15,7 +15,58 @@
 /* Header */
 .settings-header {
   margin-bottom: var(--spacing-xl);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.header-text {
+  flex: 1;
   text-align: center;
+}
+
+/* Admin Access Button - Next to Settings Title */
+.admin-access-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.admin-access-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.admin-access-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+}
+
+.admin-access-btn svg {
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.admin-text {
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .settings-header h1 {
@@ -314,7 +365,43 @@
   }
 }
 
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .header-text {
+    text-align: center;
+  }
+
+  .admin-access-btn {
+    padding: 8px 18px;
+    font-size: 0.85rem;
+  }
+
+  .admin-access-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 @media (max-width: 480px) {
+  .admin-access-btn {
+    padding: 8px 16px;
+    font-size: 0.8rem;
+  }
+
+  .admin-access-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .admin-text {
+    font-size: 0.75rem;
+  }
+
   .settings-header h1 {
     font-size: 1.375rem;
   }

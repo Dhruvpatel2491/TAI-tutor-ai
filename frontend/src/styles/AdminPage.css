@@ -1,0 +1,711 @@
+/* Admin Page Styles */
+
+.admin-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.admin-header {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-header-content {
+  width: 80vw;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 1.5rem; /* Reduced from 1.8rem */
+  color: #333;
+  font-weight: 700;
+}
+
+.btn-logout {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.btn-logout:hover {
+  background: #c0392b;
+}
+
+.admin-container {
+  width: 80vw;
+  margin: 1rem auto;
+  height: calc(100vh - 120px);
+  overflow: hidden; /* Changed from overflow-y: auto - no page scroll */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabs */
+.admin-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.8rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: #555;
+  font-size: 0.9rem; /* Reduced from 1rem */
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+/* Error Display */
+.admin-error {
+  background: #fee;
+  color: #c33;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(195, 51, 51, 0.2);
+}
+
+.admin-error button {
+  background: none;
+  border: none;
+  color: #c33;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Content */
+.admin-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  overflow-y: auto; /* Scrollable content area */
+  min-height: 0;
+}
+
+.admin-loading {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
+  color: #667eea;
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #eee;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.2rem; /* Reduced from 1.5rem */
+  color: #333;
+}
+
+.section-header-small {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.section-header-small h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn-delete,
+.btn-upload,
+.btn-rebuild {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-delete {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.btn-delete:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-upload {
+  background: #3498db;
+  color: white;
+}
+
+.btn-upload:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.btn-upload:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-rebuild {
+  background: #f39c12;
+  color: white;
+}
+
+.btn-rebuild:hover {
+  background: #e67e22;
+}
+
+/* Users Section */
+.users-section {
+  margin: 1rem;
+
+  animation: fadeIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 65vh;
+}
+
+.users-table {
+  overflow-x: auto;
+  overflow-y: auto; /* Scrollable table */
+  max-height: 100%;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.users-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem; /* Smaller text */
+}
+
+.users-table th,
+.users-table td {
+  padding: 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.users-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.users-table tr:hover {
+  background: #f8f9fa;
+}
+
+.users-table input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #999;
+  font-size: 1.1rem;
+}
+
+/* Courses Section */
+.courses-section {
+  animation: fadeIn 0.3s ease;
+}
+
+.upload-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.upload-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.form-group input[type="file"],
+.form-group input[type="text"] {
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.2rem;
+}
+
+/* Path Input with Autocomplete */
+.path-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.path-input-wrapper input[type="text"] {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.path-input-wrapper input[type="text"]:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.path-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.path-suggestion-item {
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease;
+}
+
+.path-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.path-suggestion-item:hover {
+  background: #f8f9fa;
+  color: #667eea;
+}
+
+.course-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.course-tree h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.course-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.course-tree-item {
+  margin-bottom: 0.5rem;
+}
+
+.course-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.course-item:hover {
+  background: #f8f9fa;
+}
+
+.course-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.directory-icon,
+.file-icon {
+  font-size: 1rem;
+}
+
+.course-name {
+  flex: 1;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.course-size {
+  color: #999;
+  font-size: 0.8rem;
+}
+
+/* Settings Section */
+
+
+
+.admin-settings-section {
+  animation: fadeIn 0.3s ease;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: 0;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+}
+
+.admin-settings-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.2rem;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.health-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.info-card h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 0.8rem;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-card p {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.status {
+  text-transform: capitalize;
+}
+
+.status.healthy {
+  color: #2ecc71;
+  font-weight: 700;
+}
+
+.count {
+  font-size: 1.6rem !important;
+}
+
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.action-card {
+  background: #f8f9fa;
+  padding: 1.2rem;
+  border-radius: 8px;
+}
+
+.action-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.8rem;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.action-card p {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.endpoint-url {
+  background: #fff;
+  padding: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.endpoint-url code {
+  color: #667eea;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.modal p {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-confirm {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel {
+  background: #95a5a6;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #7f8c8d;
+}
+
+.btn-confirm {
+  background: #f39c12;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: #e67e22;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Two-Column Course Layout */
+.courses-two-column {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 2rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.courses-left-column,
+.courses-right-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.courses-left-column {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.courses-right-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.btn-delete-small {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background 0.3s ease;
+}
+
+.btn-delete-small:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.btn-delete-small:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hint-text {
+  font-size: 0.8rem;
+  color: #999;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.courses-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Scrollbar Styling */
+.admin-content::-webkit-scrollbar,
+.course-list::-webkit-scrollbar,
+.users-table::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-content::-webkit-scrollbar-track,
+.course-list::-webkit-scrollbar-track,
+.users-table::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb,
+.course-list::-webkit-scrollbar-thumb,
+.users-table::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.5);
+  border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb:hover,
+.course-list::-webkit-scrollbar-thumb:hover,
+.users-table::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.7);
+}

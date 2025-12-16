@@ -10,6 +10,7 @@ import CodeQuestDashboardPage from './pages/CodeQuestDashboardPage';
 import CodeQuestSessionPage from './pages/CodeQuestSessionPage';
 import CodeQuestFeedbackPage from './pages/CodeQuestFeedbackPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PlannerPanel from './components/PlannerPanel';
 import { authService } from './services/authService';
@@ -66,6 +67,11 @@ function Header() {
     navigate('/login');
   };
   // console.log('Using local user for effectiveEmail:', effectiveEmail);
+
+  // Hide header on admin page
+  if (location.pathname === '/admin') {
+    return null;
+  }
 
   if (!effectiveEmail) return null;
 
@@ -139,6 +145,7 @@ function App() {
               <Route path="/codequest/:sessionId" element={<ProtectedRoute><CodeQuestSessionPage /></ProtectedRoute>} />
               <Route path="/codequest/:sessionId/feedback" element={<ProtectedRoute><CodeQuestFeedbackPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
             </Routes>
           </div>
