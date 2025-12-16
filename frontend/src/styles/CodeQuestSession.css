@@ -22,8 +22,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  background: var(--color-bg-secondary, #f8f9fa);
+  gap: 0.5rem;
+  background: var(--color-bg-tertiary, #f8f9fa);
   border-bottom: 1px solid var(--color-border, #e0e0e0);
 }
 
@@ -37,7 +37,7 @@
   appearance: none;
   border: none;
   background: transparent;
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem 0.5rem;
   cursor: pointer;
   color: var(--color-text-secondary, #666);
 }
@@ -184,8 +184,27 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   padding: 0.75rem;
-  overflow: auto;
+  box-sizing: border-box;
+  /* allow the challenges grid to scroll when content is tall */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* constrain height to keep it inside the card (account for headers/padding) */
+  max-height: calc(60vh - 160px);
   min-height: 0;
+  /* give extra right padding so the scrollbar doesn't overlap card content */
+  padding-right: 1rem;
+}
+
+/* narrow, subtle scrollbar so it sits inside the card cleanly */
+.codequest-grid::-webkit-scrollbar {
+  width: 10px;
+}
+.codequest-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.codequest-grid::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.18);
+  border-radius: 8px;
 }
 
 .codequest-card {

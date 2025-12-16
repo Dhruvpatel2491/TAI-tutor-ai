@@ -2,8 +2,8 @@
 
 .settings-page {
   width: 100%;
-  min-height: 80vh;
-  padding: var(--spacing-xl) var(--spacing-lg);
+  height: 80vh;
+  /* padding: var(--spacing-xl) var(--spacing-lg); */
   background: var(--color-bg-page);
 }
 

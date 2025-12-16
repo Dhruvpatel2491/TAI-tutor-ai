@@ -39,7 +39,7 @@ export default function CodeQuestFeedbackPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState(location.state?.stats || null);
+  const stats = location.state?.stats || null;
   const [session, setSession] = useState(location.state?.session || null);
   const [challenges, setChallenges] = useState(location.state?.challenges || null);
   const [error, setError] = useState('');
@@ -129,26 +129,29 @@ export default function CodeQuestFeedbackPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Score</h3>
-        <div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>
-          {scorePct}%
-        </div>
-        <div className="muted" style={{ marginTop: 6 }}>
-          Submitted: {derivedStats.submitted}/{derivedStats.total_challenges} · Passed: {derivedStats.passed} · Failed: {derivedStats.failed}
-        </div>
-      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card" style={{ flex: 1, minWidth: 240 }}>
+            <h3 style={{ marginTop: 0 }}>Score</h3>
+            <div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>
+              {scorePct}%
+            </div>
+            <div className="muted" style={{ marginTop: 6 }}>
+              Submitted: {derivedStats.submitted}/{derivedStats.total_challenges} · Passed: {derivedStats.passed} · Failed: {derivedStats.failed}
+            </div>
+          </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Quest Details</h3>
-        <div style={{ marginTop: 8 }}><strong>Name:</strong> <span className="muted">{title}</span></div>
-        <div style={{ marginTop: 6 }}><strong>Description:</strong> <span className="muted">{description || '(none)'}</span></div>
-        <div style={{ marginTop: 6 }}><strong>Difficulty:</strong> <span className="muted">{difficulty}</span></div>
-      </div>
+          <div className="card" style={{ flex: 1, minWidth: 240 }}>
+            <h3 style={{ marginTop: 0 }}>Quest Details</h3>
+            <div style={{ marginTop: 8 }}><strong>Name:</strong> <span className="muted">{title}</span></div>
+            <div style={{ marginTop: 6 }}><strong>Description:</strong> <span className="muted">{description || '(none)'}</span></div>
+            <div style={{ marginTop: 6 }}><strong>Difficulty:</strong> <span className="muted">{difficulty}</span></div>
+          </div>
+        </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Challenges</h3>
-        <div className="codequest-grid" style={{ padding: 0, marginTop: 10 }}>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Challenges</h3>
+          <div className="codequest-grid" style={{ padding: 0, marginTop: 10 }}>
           {ids.map((cid, idx) => {
             const meta = (challenges || []).find((c) => c.id === cid) || null;
             const r = results?.[cid] || null;
@@ -174,6 +177,7 @@ export default function CodeQuestFeedbackPage() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     </div>

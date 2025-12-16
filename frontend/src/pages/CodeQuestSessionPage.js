@@ -290,7 +290,6 @@ export default function CodeQuestSessionPage() {
   const difficulty = capitalizeWord(session?.difficulty || 'medium');
   const language = session?.language || 'Unknown';
   const planName = planNameFromReference(session?.plan_reference);
-  const currentStatus = statusLabel(results?.[currentId]);
 
   return (
     <div className="quiz-page codequest-session">
@@ -389,7 +388,7 @@ export default function CodeQuestSessionPage() {
             <div className="codequest-description">
               <div className="codequest-desc-title">{currentChallenge?.title || 'Challenge'}</div>
               <div className="codequest-desc-text">{currentChallenge?.prompt || 'No description available.'}</div>
-              <div className="muted small-text" style={{ marginTop: 8 }}>Status: {currentStatus}</div>
+              {/* <div className="muted small-text" style={{ marginTop: 8 }}>Status: {currentStatus}</div> */}
             </div>
           </CollapsiblePanel>
 
