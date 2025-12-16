@@ -1,5 +1,5 @@
 """
-Chat History Manager for TAI Tutor AI.
+Chat module for TAI Tutor AI.
 
 This module provides a lightweight JSON-backed store for chat history management.
 It handles:
@@ -16,18 +16,18 @@ import os
 import json
 import uuid
 import threading
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import logging
 
-logger = logging.getLogger("backend.chat_manager")
+# Import with fallback for running as script
+try:
+    from config import CHAT_STORE_DIR
+except ImportError:
+    from config import CHAT_STORE_DIR
 
-# Default storage directory for chat data
-DEFAULT_CHAT_STORE_DIR = os.environ.get(
-    "CHAT_STORE_DIR",
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), "user_data", "chats")
-)
+logger = logging.getLogger("backend.modules.chat")
 
 
 class ChatMessage:
@@ -100,7 +100,6 @@ class ChatSession:
         
         # Update title based on first user message if still default
         if self.title == "New Conversation" and role == "user" and content:
-            # Use first 50 chars of first user message as title
             self.title = content[:50] + ("..." if len(content) > 50 else "")
         
         return message
@@ -154,7 +153,7 @@ class ChatManager:
     """
     
     def __init__(self, store_dir: Optional[str] = None):
-        self.store_dir = Path(store_dir or DEFAULT_CHAT_STORE_DIR)
+        self.store_dir = Path(store_dir or CHAT_STORE_DIR)
         self._lock = threading.Lock()
         # Ensure base directory exists
         self.store_dir.mkdir(parents=True, exist_ok=True)
@@ -162,7 +161,6 @@ class ChatManager:
     
     def _get_user_dir(self, user_id: str) -> Path:
         """Get the directory for a specific user's chats."""
-        # Sanitize user_id for filesystem (replace @ and . with safe chars)
         safe_user_id = user_id.replace("@", "__at__").replace(".", "__dot__")
         return self.store_dir / safe_user_id
     
@@ -218,17 +216,7 @@ class ChatManager:
         title: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[ChatSession]:
-        """
-        Create a new chat session.
-        
-        Args:
-            user_id: The user's identifier (usually email)
-            title: Optional title for the chat
-            metadata: Optional metadata dict
-            
-        Returns:
-            The created ChatSession or None on error
-        """
+        """Create a new chat session."""
         with self._lock:
             session = ChatSession(
                 user_id=user_id,
@@ -242,16 +230,7 @@ class ChatManager:
             return None
     
     def get_chat(self, user_id: str, chat_id: str) -> Optional[ChatSession]:
-        """
-        Retrieve a chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            
-        Returns:
-            The ChatSession or None if not found
-        """
+        """Retrieve a chat session."""
         with self._lock:
             return self._load_session(user_id, chat_id)
     
@@ -263,19 +242,7 @@ class ChatManager:
         content: str,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[ChatMessage]:
-        """
-        Add a message to an existing chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            role: 'user' or 'assistant'
-            content: The message content
-            metadata: Optional message metadata
-            
-        Returns:
-            The created ChatMessage or None on error
-        """
+        """Add a message to an existing chat session."""
         with self._lock:
             session = self._load_session(user_id, chat_id)
             if not session:
@@ -297,20 +264,7 @@ class ChatManager:
         user_metadata: Optional[Dict[str, Any]] = None,
         assistant_metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[tuple]:
-        """
-        Add both user and assistant messages to a chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            user_content: The user's message
-            assistant_content: The assistant's response
-            user_metadata: Optional metadata for user message
-            assistant_metadata: Optional metadata for assistant message
-            
-        Returns:
-            Tuple of (user_message, assistant_message) or None on error
-        """
+        """Add both user and assistant messages to a chat session."""
         with self._lock:
             session = self._load_session(user_id, chat_id)
             if not session:
@@ -331,18 +285,7 @@ class ChatManager:
         limit: Optional[int] = None,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """
-        List all chat sessions for a user.
-        
-        Args:
-            user_id: The user's identifier
-            include_archived: Whether to include archived chats
-            limit: Maximum number of results
-            offset: Number of results to skip
-            
-        Returns:
-            List of chat summaries sorted by updated_at descending
-        """
+        """List all chat sessions for a user."""
         with self._lock:
             user_dir = self._get_user_dir(user_id)
             
@@ -358,16 +301,16 @@ class ChatManager:
                         
                         if not include_archived and data.get("archived", False):
                             continue
-                        # Derive a display title: prefer the most recent user message content if present
+                        
+                        # Derive display title from last user message
                         display_title = data.get("title", "Untitled")
                         messages = data.get("messages", []) or []
-                        # Look for the last user message to use as a compact display title
                         for m in reversed(messages):
                             if m.get("role") == "user" and m.get("content"):
                                 content = m.get("content")
                                 display_title = content[:50] + ("..." if len(content) > 50 else "")
                                 break
-
+                        
                         summaries.append({
                             "chat_id": data.get("chat_id"),
                             "title": display_title,
@@ -383,7 +326,7 @@ class ChatManager:
                 logger.exception(f"Failed to list chats for user {user_id}: {e}")
                 return []
             
-            # Sort by updated_at descending (most recent first)
+            # Sort by updated_at descending
             summaries.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
             
             # Apply pagination
@@ -395,16 +338,7 @@ class ChatManager:
             return summaries
     
     def delete_chat(self, user_id: str, chat_id: str) -> bool:
-        """
-        Delete a chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            
-        Returns:
-            True if deleted, False otherwise
-        """
+        """Delete a chat session."""
         with self._lock:
             chat_path = self._get_chat_path(user_id, chat_id)
             
@@ -421,17 +355,7 @@ class ChatManager:
                 return False
     
     def archive_chat(self, user_id: str, chat_id: str, archive: bool = True) -> bool:
-        """
-        Archive or unarchive a chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            archive: True to archive, False to unarchive
-            
-        Returns:
-            True if successful, False otherwise
-        """
+        """Archive or unarchive a chat session."""
         with self._lock:
             session = self._load_session(user_id, chat_id)
             if not session:
@@ -447,17 +371,7 @@ class ChatManager:
             return False
     
     def update_chat_title(self, user_id: str, chat_id: str, title: str) -> bool:
-        """
-        Update the title of a chat session.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: The chat session ID
-            title: The new title
-            
-        Returns:
-            True if successful, False otherwise
-        """
+        """Update the title of a chat session."""
         with self._lock:
             session = self._load_session(user_id, chat_id)
             if not session:
@@ -475,33 +389,21 @@ class ChatManager:
         chat_id: Optional[str] = None,
         title: Optional[str] = None
     ) -> Optional[ChatSession]:
-        """
-        Get an existing chat or create a new one.
-        
-        If chat_id is provided, attempts to load that chat.
-        If not found or not provided, creates a new chat.
-        
-        Args:
-            user_id: The user's identifier
-            chat_id: Optional existing chat ID
-            title: Optional title for new chat
-            
-        Returns:
-            The ChatSession or None on error
-        """
+        """Get an existing chat or create a new one."""
         with self._lock:
             if chat_id:
                 session = self._load_session(user_id, chat_id)
                 if session:
                     return session
                 logger.debug(f"Chat {chat_id} not found, creating new")
-            
-            # Create new session outside the lock (create_chat has its own lock)
         
         return self.create_chat(user_id, title)
 
 
-# Global singleton instance
+# =============================================================================
+# Global Singleton Instance
+# =============================================================================
+
 _chat_manager: Optional[ChatManager] = None
 _manager_lock = threading.Lock()
 
@@ -515,7 +417,10 @@ def get_chat_manager(store_dir: Optional[str] = None) -> ChatManager:
         return _chat_manager
 
 
-# Convenience functions that use the global manager
+# =============================================================================
+# Convenience Functions
+# =============================================================================
+
 def create_chat(user_id: str, title: Optional[str] = None) -> Optional[ChatSession]:
     """Create a new chat session."""
     return get_chat_manager().create_chat(user_id, title)

@@ -27,7 +27,7 @@ from server import app
 import chat_manager as cm
 
 try:
-    import backend.chat_manager as bcm  # type: ignore
+    import chat_manager as bcm  # type: ignore
 except Exception:
     bcm = None
 

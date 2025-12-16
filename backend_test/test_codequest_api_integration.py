@@ -22,7 +22,7 @@ from server import app
 import codequest_manager as cqm
 
 try:
-    import backend.codequest_manager as bcqm  # type: ignore
+    import codequest_manager as bcqm  # type: ignore
 except Exception:
     bcqm = None
 

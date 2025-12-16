@@ -1,38 +1,47 @@
 """
-Quiz module for TAI-tutor-ai.
+Quiz module for TAI Tutor AI.
 
-This module handles quiz generation, storage, and retrieval using Ollama's 
-generative capabilities (not retrieved embeddings).
+This module handles quiz generation, storage, and evaluation using Ollama's
+generative capabilities.
 
 Quiz data is stored in: user_data/quiz/{user_id}/{quiz_title}.json
-
-References:
-- https://docs.ollama.com/capabilities/thinking
-- https://docs.ollama.com/capabilities/structured-outputs
 """
 
-from typing import Optional, Dict, List, Any
-from pydantic import BaseModel, Field
-from datetime import datetime, timezone
 import os
 import json
 import hashlib
 import logging
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
 from pathlib import Path
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from pydantic import BaseModel, Field
 
+from config import (
+    QUIZ_MODEL,
+    QUIZ_TEMPERATURE,
+    QUIZ_MAX_TOKENS,
+    OLLAMA_LLM,
+    DEFAULT_TIMEOUT,
+    QUIZ_STORE_DIR,
+)
+from prompts.quiz_prompts import (
+    build_quiz_generation_prompt,
+    get_fallback_questions,
+)
+
+logger = logging.getLogger("backend.modules.quiz")
+
+# Try to import Ollama
 try:
     from llama_index.llms.ollama import Ollama
 except ImportError:
     Ollama = None
 
 
-# ============================================================================
-# Pydantic Models for Quiz Data
-# ============================================================================
+# =============================================================================
+# Pydantic Models
+# =============================================================================
 
 class QuizQuestion(BaseModel):
     """A single quiz question."""
@@ -94,12 +103,11 @@ class QuizMetadata(BaseModel):
     date_completed: Optional[datetime] = None
 
 
-# ============================================================================
-# Quiz Storage Helpers
-# ============================================================================
+# =============================================================================
+# Storage Helpers
+# =============================================================================
 
-# Base directory for quiz data
-_ROOT_QUIZ_DIR = Path(__file__).resolve().parent.parent / "user_data" / "quiz"
+_ROOT_QUIZ_DIR = Path(QUIZ_STORE_DIR)
 
 
 def _ensure_quiz_dir(user_id: str) -> Path:
@@ -111,7 +119,6 @@ def _ensure_quiz_dir(user_id: str) -> Path:
 
 def _safe_filename(title: str) -> str:
     """Convert quiz title to safe filename."""
-    # Replace unsafe characters
     safe = title.replace(" ", "_").replace("/", "_").replace("\\", "_")
     safe = "".join(c for c in safe if c.isalnum() or c in "_-.")
     return safe[:100] if len(safe) > 100 else safe
@@ -133,7 +140,6 @@ def save_quiz(user_id: str, quiz: QuizResult) -> Path:
     
     try:
         data = quiz.model_dump()
-        # Convert datetime to ISO strings
         if isinstance(data.get("date_taken"), datetime):
             data["date_taken"] = data["date_taken"].isoformat()
         if isinstance(data.get("date_completed"), datetime):
@@ -155,17 +161,19 @@ def load_quiz(user_id: str, quiz_id: str) -> Optional[QuizResult]:
     if not user_dir.exists():
         return None
     
-    # Search for file containing quiz_id
     for file_path in user_dir.glob("*.json"):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if data.get("quiz_id") == quiz_id:
-                # Parse dates
                 if data.get("date_taken"):
-                    data["date_taken"] = datetime.fromisoformat(data["date_taken"].replace("Z", "+00:00"))
+                    data["date_taken"] = datetime.fromisoformat(
+                        data["date_taken"].replace("Z", "+00:00")
+                    )
                 if data.get("date_completed"):
-                    data["date_completed"] = datetime.fromisoformat(data["date_completed"].replace("Z", "+00:00"))
+                    data["date_completed"] = datetime.fromisoformat(
+                        data["date_completed"].replace("Z", "+00:00")
+                    )
                 return QuizResult(**data)
         except Exception as e:
             logger.warning(f"Failed to load quiz from {file_path}: {e}")
@@ -186,7 +194,6 @@ def list_quizzes(user_id: str) -> List[QuizMetadata]:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            # Parse date
             date_taken = data.get("date_taken", "")
             if date_taken:
                 try:
@@ -203,7 +210,6 @@ def list_quizzes(user_id: str) -> List[QuizMetadata]:
                 except Exception:
                     date_completed = None
             
-            # Extract topic from first question or use title
             topic = data.get("quiz_title", "General")
             questions = data.get("questions", [])
             if questions and isinstance(questions[0], dict):
@@ -247,97 +253,23 @@ def delete_quiz(user_id: str, quiz_id: str) -> bool:
     return False
 
 
-# ============================================================================
-# Quiz Generation Prompts
-# ============================================================================
-
-def _build_quiz_generation_prompt(
-    topic: str,
-    plan_text: Optional[str] = None,
-    num_questions: int = 5,
-    question_types: Optional[List[str]] = None,
-    difficulty: str = "medium"
-) -> str:
-    """Build prompt for quiz generation."""
-    
-    if question_types is None:
-        question_types = ["multiple_choice", "true_false", "short_answer"]
-    
-    types_desc = ", ".join(question_types)
-    
-    plan_context = ""
-    if plan_text:
-        plan_context = f"""
-Based on the following learning plan, generate questions that test understanding of the covered material:
-
---- LEARNING PLAN START ---
-{plan_text[:3000]}
---- LEARNING PLAN END ---
-"""
-    
-    prompt = f"""You are an expert educational quiz generator. Generate a quiz based on the following requirements.
-
-Topic: {topic}
-Number of questions: {num_questions}
-Question types to include: {types_desc}
-Difficulty level: {difficulty}
-{plan_context}
-
-Generate exactly {num_questions} questions in valid JSON format. Return ONLY a JSON array with no additional text or markdown.
-
-Each question object must have these fields:
-- "question_id": unique string identifier (e.g., "q1", "q2")
-- "question_text": the question text
-- "question_type": one of "multiple_choice", "true_false", or "short_answer"
-- "options": array of 4 options for multiple_choice (include A, B, C, D prefixes), null for others
-- "correct_answer": the correct answer (for multiple choice, include the letter prefix like "A. ...")
-- "explanation": brief explanation of why the answer is correct
-- "difficulty": "{difficulty}"
-- "topic": "{topic}"
-
-For true_false questions:
-- options should be ["True", "False"]
-- correct_answer should be "True" or "False"
-
-For short_answer questions:
-- options should be null
-- correct_answer should be the expected answer (keep it concise, 1-3 words)
-
-Example format:
-[
-  {{
-    "question_id": "q1",
-    "question_text": "What is the primary purpose of a variable in programming?",
-    "question_type": "multiple_choice",
-    "options": ["A. To store data", "B. To display output", "C. To create loops", "D. To define functions"],
-    "correct_answer": "A. To store data",
-    "explanation": "Variables are containers for storing data values.",
-    "difficulty": "easy",
-    "topic": "Programming Basics"
-  }}
-]
-
-Return ONLY the JSON array, no markdown code blocks, no explanations before or after.
-"""
-    return prompt
-
+# =============================================================================
+# Quiz Generation
+# =============================================================================
 
 def _parse_quiz_response(response_text: str) -> List[Dict[str, Any]]:
     """Parse LLM response into quiz questions."""
-    # Clean the response
     text = response_text.strip()
     
-    # Remove markdown code blocks if present
+    # Remove markdown code blocks
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove first line (```json or ```)
         lines = lines[1:]
-        # Remove last line if it's just ```
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         text = "\n".join(lines)
     
-    # Try to find JSON array
+    # Find JSON array
     start_idx = text.find("[")
     end_idx = text.rfind("]")
     
@@ -354,9 +286,34 @@ def _parse_quiz_response(response_text: str) -> List[Dict[str, Any]]:
     return []
 
 
-# ============================================================================
-# Quiz Generation Function
-# ============================================================================
+def _generate_fallback_questions(
+    topic: str,
+    num_questions: int,
+    question_types: List[str],
+    difficulty: str
+) -> List[QuizQuestion]:
+    """Generate fallback questions when LLM is unavailable."""
+    fallback_data = get_fallback_questions(topic, num_questions)
+    
+    questions = []
+    for i, q in enumerate(fallback_data):
+        q_type = q.get("question_type", "multiple_choice")
+        if q_type not in question_types:
+            q_type = question_types[i % len(question_types)]
+        
+        questions.append(QuizQuestion(
+            question_id=q.get("question_id", f"q{i+1}"),
+            question_text=q.get("question_text", ""),
+            question_type=q_type,
+            options=q.get("options"),
+            correct_answer=q.get("correct_answer", ""),
+            explanation=q.get("explanation"),
+            difficulty=difficulty,
+            topic=topic
+        ))
+    
+    return questions
+
 
 def generate_quiz(
     user_id: str,
@@ -367,9 +324,9 @@ def generate_quiz(
     question_types: Optional[List[str]] = None,
     difficulty: str = "medium",
     model: Optional[str] = None,
-    temperature: float = 0.3,
-    max_tokens: int = 2048,
-    timeout: int = 300
+    temperature: float = QUIZ_TEMPERATURE,
+    max_tokens: int = QUIZ_MAX_TOKENS,
+    timeout: int = DEFAULT_TIMEOUT
 ) -> QuizResult:
     """
     Generate a quiz using Ollama's generative mode.
@@ -379,7 +336,7 @@ def generate_quiz(
         topic: Quiz topic/title
         plan_text: Optional learning plan text for context
         plan_reference: Optional reference to learning plan ID
-        num_questions: Number of questions to generate (default 5)
+        num_questions: Number of questions to generate
         question_types: List of question types to include
         difficulty: easy, medium, or hard
         model: Ollama model to use
@@ -393,12 +350,10 @@ def generate_quiz(
     if question_types is None:
         question_types = ["multiple_choice", "true_false", "short_answer"]
     
-    # Generate quiz ID and metadata
     quiz_id = _generate_quiz_id(user_id, topic)
     now = datetime.now(timezone.utc)
     
-    # Build generation prompt
-    prompt = _build_quiz_generation_prompt(
+    prompt = build_quiz_generation_prompt(
         topic=topic,
         plan_text=plan_text,
         num_questions=num_questions,
@@ -413,7 +368,7 @@ def generate_quiz(
         questions = _generate_fallback_questions(topic, num_questions, question_types, difficulty)
     else:
         try:
-            model_name = model or os.environ.get("QUIZ_MODEL") or os.environ.get("OLLAMA_LLM") or "llama3:8b"
+            model_name = model or QUIZ_MODEL or OLLAMA_LLM
             llm = Ollama(
                 model=model_name,
                 temperature=temperature,
@@ -421,9 +376,8 @@ def generate_quiz(
                 request_timeout=timeout
             )
             
-            logger.info(f"Generating quiz with model={model_name}, topic={topic}, num_questions={num_questions}")
+            logger.info(f"Generating quiz with model={model_name}, topic={topic}")
             
-            # Call LLM
             if hasattr(llm, "complete"):
                 response = llm.complete(prompt)
                 response_text = str(response)
@@ -435,7 +389,6 @@ def generate_quiz(
             else:
                 response_text = ""
             
-            # Parse response
             parsed = _parse_quiz_response(response_text)
             
             if parsed:
@@ -457,14 +410,13 @@ def generate_quiz(
                         continue
             
             if not questions:
-                logger.warning("No questions parsed from LLM response, using fallback")
+                logger.warning("No questions parsed from LLM, using fallback")
                 questions = _generate_fallback_questions(topic, num_questions, question_types, difficulty)
                 
         except Exception as e:
             logger.exception(f"Quiz generation failed: {e}")
             questions = _generate_fallback_questions(topic, num_questions, question_types, difficulty)
     
-    # Create quiz result
     quiz = QuizResult(
         quiz_id=quiz_id,
         user_id=user_id,
@@ -476,94 +428,43 @@ def generate_quiz(
         status="in_progress"
     )
     
-    # Save to disk
     save_quiz(user_id, quiz)
-    
     return quiz
 
 
-def _generate_fallback_questions(
-    topic: str,
-    num_questions: int,
-    question_types: List[str],
-    difficulty: str
-) -> List[QuizQuestion]:
-    """Generate fallback questions when LLM is unavailable."""
-    questions = []
+# =============================================================================
+# Answer Evaluation
+# =============================================================================
+
+def _check_answer(question: QuizQuestion, user_answer: str) -> bool:
+    """Check if user answer is correct."""
+    correct = question.correct_answer.strip().lower()
+    answer = user_answer.strip().lower()
     
-    # Simple fallback questions based on topic
-    templates = [
-        {
-            "type": "multiple_choice",
-            "text": f"What is the primary concept behind {topic}?",
-            "options": [
-                f"A. Understanding {topic} fundamentals",
-                "B. Avoiding all related concepts",
-                "C. Ignoring best practices",
-                "D. None of the above"
-            ],
-            "answer": f"A. Understanding {topic} fundamentals",
-            "explanation": f"The primary concept is to understand {topic} fundamentals."
-        },
-        {
-            "type": "true_false",
-            "text": f"Learning {topic} requires practice and understanding.",
-            "options": ["True", "False"],
-            "answer": "True",
-            "explanation": "Practice and understanding are essential for learning any topic."
-        },
-        {
-            "type": "short_answer",
-            "text": f"Name one key aspect of {topic}.",
-            "options": None,
-            "answer": "Practice",
-            "explanation": f"Practice is a key aspect of mastering {topic}."
-        },
-        {
-            "type": "multiple_choice",
-            "text": f"Which approach is best for learning {topic}?",
-            "options": [
-                "A. Hands-on practice",
-                "B. Only reading",
-                "C. Memorization only",
-                "D. Avoiding examples"
-            ],
-            "answer": "A. Hands-on practice",
-            "explanation": "Hands-on practice is the most effective approach."
-        },
-        {
-            "type": "true_false",
-            "text": f"{topic} is a topic that can be learned in isolation without any context.",
-            "options": ["True", "False"],
-            "answer": "False",
-            "explanation": "Context and connections to other concepts are important for learning."
-        }
-    ]
-    
-    for i in range(min(num_questions, len(templates))):
-        t = templates[i]
-        q_type = t["type"]
-        if q_type not in question_types:
-            # Find a matching type
-            q_type = question_types[i % len(question_types)]
+    if question.question_type == "multiple_choice":
+        correct_letter = correct[0] if correct else ""
+        answer_letter = answer[0] if answer else ""
         
-        questions.append(QuizQuestion(
-            question_id=f"q{i+1}",
-            question_text=t["text"],
-            question_type=q_type,
-            options=t["options"],
-            correct_answer=t["answer"],
-            explanation=t["explanation"],
-            difficulty=difficulty,
-            topic=topic
-        ))
+        if answer_letter == correct_letter:
+            return True
+        if answer == correct:
+            return True
+        if "." in correct:
+            correct_text = correct.split(".", 1)[1].strip()
+            if answer == correct_text:
+                return True
     
-    return questions
+    elif question.question_type == "true_false":
+        return answer in ("true", "false") and answer == correct
+    
+    elif question.question_type == "short_answer":
+        if answer == correct:
+            return True
+        if correct in answer or answer in correct:
+            return True
+    
+    return answer == correct
 
-
-# ============================================================================
-# Quiz Submission and Scoring
-# ============================================================================
 
 def submit_quiz_answer(
     user_id: str,
@@ -612,12 +513,11 @@ def submit_quiz_answer(
     quiz.correct_answers = sum(1 for r in quiz.user_responses if r.is_correct)
     quiz.score = (quiz.correct_answers / quiz.total_questions) * 100 if quiz.total_questions > 0 else 0
     
-    # Check if quiz is complete
+    # Check if complete
     if len(quiz.user_responses) >= quiz.total_questions:
         quiz.status = "completed"
         quiz.date_completed = datetime.now(timezone.utc)
     
-    # Save updated quiz
     save_quiz(user_id, quiz)
     
     return {
@@ -629,40 +529,6 @@ def submit_quiz_answer(
         "total_questions": quiz.total_questions,
         "status": quiz.status
     }
-
-
-def _check_answer(question: QuizQuestion, user_answer: str) -> bool:
-    """Check if user answer is correct."""
-    correct = question.correct_answer.strip().lower()
-    answer = user_answer.strip().lower()
-    
-    if question.question_type == "multiple_choice":
-        # Match by letter or full option text
-        correct_letter = correct[0] if correct else ""
-        answer_letter = answer[0] if answer else ""
-        
-        if answer_letter == correct_letter:
-            return True
-        if answer == correct:
-            return True
-        # Also check if answer matches the text after letter prefix
-        if "." in correct:
-            correct_text = correct.split(".", 1)[1].strip()
-            if answer == correct_text:
-                return True
-    
-    elif question.question_type == "true_false":
-        return answer in ("true", "false") and answer == correct
-    
-    elif question.question_type == "short_answer":
-        # More lenient matching for short answers
-        if answer == correct:
-            return True
-        # Check if answer contains the key words
-        if correct in answer or answer in correct:
-            return True
-    
-    return answer == correct
 
 
 def complete_quiz(user_id: str, quiz_id: str) -> QuizResult:
