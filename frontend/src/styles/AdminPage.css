@@ -221,7 +221,7 @@
   animation: fadeIn 0.3s ease;
   display: flex;
   flex-direction: column;
-  height: 65vh;
+  height: 60vh;
 }
 
 .users-table {
@@ -445,7 +445,7 @@
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
+  padding: 10px;
   margin-bottom: 0;
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition-fast);
@@ -468,7 +468,7 @@
 .info-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1rem;
+  padding: 0.5rem 1rem;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
@@ -508,7 +508,7 @@
 
 .action-card {
   background: #f8f9fa;
-  padding: 1.2rem;
+  padding: 0.75rem;
   border-radius: 8px;
 }
 

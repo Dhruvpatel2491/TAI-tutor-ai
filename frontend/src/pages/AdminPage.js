@@ -42,16 +42,18 @@ const AdminPage = () => {
     setError(null);
     
     try {
-      if (activeTab === 'users') {
+
         const usersData = await adminService.getUsers();
         setUsers(usersData);
-      } else if (activeTab === 'courses') {
+
         const coursesData = await adminService.getCourses();
         setCourses(coursesData.courses || []);
-      } else if (activeTab === 'settings') {
+
         const health = await adminService.getHealth();
         setHealthInfo(health);
-      }
+        // console.table((usersData));
+        // console.table(coursesData.courses);
+        // console.log(health);
     } catch (err) {
       console.error('Error loading tab data:', err);
       setError('Failed to load data. Please try again.');
@@ -421,6 +423,7 @@ const AdminPage = () => {
               </div>
 
               <div className="users-table">
+                
                 <table>
                   <thead>
                     <tr>
@@ -439,7 +442,7 @@ const AdminPage = () => {
                       </th>
                       <th>Email</th>
                       <th>Name</th>
-                      <th>Chats</th>
+                      {/* <th>Chats</th> */}
                       <th>Created</th>
                     </tr>
                   </thead>
@@ -453,9 +456,10 @@ const AdminPage = () => {
                             onChange={() => toggleUserSelection(user.email)}
                           />
                         </td>
+   
                         <td>{user.email}</td>
                         <td>{user.name}</td>
-                        <td>{user.chat_count}</td>
+                        {/* <td>{user.chat_count}</td> */}
                         <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
                       </tr>
                     ))}
@@ -575,11 +579,11 @@ const AdminPage = () => {
                   </div>
                   <div className="info-card">
                     <h3>Users Count</h3>
-                    <p className="count">{healthInfo.users_count}</p>
+                    <p className="count">{users?.length}</p>
                   </div>
                   <div className="info-card">
-                    <h3>Courses Count</h3>
-                    <p className="count">{healthInfo.courses_count}</p>
+                    <h3>Course File Count</h3>
+                    <p className="count">{healthInfo.components.data.file_count}</p>
                   </div>
                   <div className="info-card">
                     <h3>Last Updated</h3>

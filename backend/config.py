@@ -68,10 +68,10 @@ SAVED_PLANS_DIR = str(USER_DATA_DIR / "saved_plans")
 ADMIN_CREDS_PATH = USER_DATA_DIR / "admin" / "credentials.json"
 ADMIN_CREDENTIALS_FILE = str(ADMIN_CREDS_PATH)
 
-# Admin defaults (used when no credentials file exists)
-# These are optional env vars for initial setup
+# Admin defaults (simple password-based authentication)
+# Set ADMIN_PASSWORD environment variable to override default
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
 
 
 # =============================================================================

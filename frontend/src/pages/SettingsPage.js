@@ -21,7 +21,7 @@ const SettingsPage = () => {
       setError(null);
       const stats = await authService.getUserStats();
       setUserStats(stats);
-      console.log('Fetched user stats:', stats);
+      // console.log('Fetched user stats:', stats);
     } catch (err) {
       console.error('Failed to fetch user stats:', err);
       setError('Failed to load user statistics. Please try again later.');

@@ -15,7 +15,7 @@ from flask import Blueprint, request, jsonify
 # Import with fallback for running as script
 try:
     from config import AUTH_DISABLED
-    from admin.admin_auth import verify_admin_password, set_admin_password, is_admin_configured
+    from admin.admin_auth import verify_user_and_admin, verify_admin_password
     from admin.admin import (
         list_users,
         get_user_details,
@@ -42,6 +42,10 @@ def _verify_admin_auth() -> tuple:
     """
     Verify admin authentication from request.
     
+    Expects:
+        - Authorization header with Bearer token (for user authentication)
+        - X-Admin-Password header with admin password
+    
     Returns:
         Tuple of (is_authenticated: bool, error_response: tuple or None)
     """
@@ -51,28 +55,21 @@ def _verify_admin_auth() -> tuple:
         return True, None
     
     auth_header = request.headers.get("Authorization")
+    admin_password = request.headers.get("X-Admin-Password")
+    
     if not auth_header:
         return False, (jsonify({"error": "missing Authorization header"}), 401)
     
-    # Expect format: "Basic base64(username:password)" or "Bearer token"
-    parts = auth_header.split(" ", 1)
-    if len(parts) != 2:
-        return False, (jsonify({"error": "invalid Authorization format"}), 401)
+    if not admin_password:
+        return False, (jsonify({"error": "missing X-Admin-Password header"}), 401)
     
-    auth_type, credentials = parts
+    # Verify both user token and admin password
+    is_valid, claims = verify_user_and_admin(auth_header, admin_password)
     
-    if auth_type.lower() == "basic":
-        import base64
-        try:
-            decoded = base64.b64decode(credentials).decode("utf-8")
-            username, password = decoded.split(":", 1)
-            if verify_admin_password(username, password):
-                return True, None
-        except Exception as e:
-            logger.warning(f"Failed to decode admin credentials: {e}")
-        return False, (jsonify({"error": "invalid admin credentials"}), 401)
+    if not is_valid:
+        return False, (jsonify({"error": "invalid credentials"}), 401)
     
-    return False, (jsonify({"error": "unsupported auth type"}), 401)
+    return True, None
 
 
 @admin_bp.route("/health", methods=["GET"])
@@ -259,38 +256,44 @@ def admin_delete_course_file(course_name: str):
 
 
 # =============================================================================
-# Admin Password Management
+# Admin Verification
 # =============================================================================
 
-@admin_bp.route("/password/status", methods=["GET"])
-def admin_password_status():
-    """Check if admin password is configured."""
-    return jsonify({"configured": is_admin_configured()}), 200
-
-
-@admin_bp.route("/password", methods=["POST"])
-def admin_set_password():
-    """Set or update admin password."""
-    # This endpoint requires existing admin auth OR no password configured yet
-    if is_admin_configured():
-        is_auth, error = _verify_admin_auth()
-        if not is_auth:
-            return error
+@admin_bp.route("/verify", methods=["POST"])
+def admin_verify():
+    """
+    Verify admin access.
     
-    payload = request.get_json(force=True, silent=True) or {}
-    username = payload.get("username", "admin")
-    password = payload.get("password")
+    Expects:
+        - Authorization header with Bearer token
+        - JSON body with 'password' field containing admin password
     
-    if not password:
-        return jsonify({"error": "missing password"}), 400
-    
-    if len(password) < 8:
-        return jsonify({"error": "password must be at least 8 characters"}), 400
-    
+    Returns:
+        200 if both user token and admin password are valid
+        401 if authentication fails
+    """
     try:
-        if set_admin_password(username, password):
-            return jsonify({"status": "password set"}), 200
-        return jsonify({"error": "failed to set password"}), 500
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "missing Authorization header"}), 401
+        
+        payload = request.get_json(force=True, silent=True) or {}
+        admin_password = payload.get("password")
+        
+        if not admin_password:
+            return jsonify({"error": "missing admin password"}), 400
+        
+        # Verify both user token and admin password
+        is_valid, claims = verify_user_and_admin(auth_header, admin_password)
+        
+        if not is_valid:
+            return jsonify({"error": "invalid credentials"}), 401
+        
+        return jsonify({
+            "status": "verified",
+            "user_id": claims.get("sub") if claims else None
+        }), 200
+        
     except Exception as e:
-        logger.exception("Failed to set admin password")
+        logger.exception("Failed to verify admin access")
         return jsonify({"error": str(e)}), 500

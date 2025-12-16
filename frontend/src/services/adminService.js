@@ -4,69 +4,94 @@
  */
 
 import { DEFAULT_BACKEND_URL } from '../config';
+import { authService } from './authService';
 
 class AdminService {
   constructor() {
     this.baseURL = `${DEFAULT_BACKEND_URL}/admin`;
-    this.token = null;
+    this.adminPassword = null;
   }
 
   /**
-   * Set the admin authentication token
+   * Set the admin password (stored in memory only)
    */
-  setToken(token) {
-    this.token = token;
-    // Store in session storage (not localStorage for security)
-    sessionStorage.setItem('admin_token', token);
+  setAdminPassword(password) {
+    this.adminPassword = password;
+    // Store in session storage (cleared on browser close)
+    sessionStorage.setItem('admin_password', password);
   }
 
   /**
-   * Get the admin authentication token
+   * Get the admin password
    */
-  getToken() {
-    if (!this.token) {
-      this.token = sessionStorage.getItem('admin_token');
+  getAdminPassword() {
+    if (!this.adminPassword) {
+      this.adminPassword = sessionStorage.getItem('admin_password');
     }
-    return this.token;
+    return this.adminPassword;
   }
 
   /**
-   * Clear the admin authentication token
+   * Clear the admin password
    */
-  clearToken() {
-    this.token = null;
-    sessionStorage.removeItem('admin_token');
+  clearAdminPassword() {
+    this.adminPassword = null;
+    sessionStorage.removeItem('admin_password');
   }
 
   /**
-   * Get authorization headers with token
+   * Get authorization headers with user bearer token and admin password
    */
   getAuthHeaders() {
-    const token = this.getToken();
+    const userToken = authService.getToken();
+    const adminPassword = this.getAdminPassword();
+    
     return {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {}),
+      ...(adminPassword ? { 'X-Admin-Password': adminPassword } : {})
     };
   }
 
   /**
-   * Verify admin password and get token
+   * Get auth headers for file uploads (no Content-Type)
+   */
+  getFileUploadHeaders() {
+    const userToken = authService.getToken();
+    const adminPassword = this.getAdminPassword();
+    
+    return {
+      ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {}),
+      ...(adminPassword ? { 'X-Admin-Password': adminPassword } : {})
+    };
+  }
+
+  /**
+   * Verify admin password with user's bearer token
    */
   async verifyPassword(password) {
     try {
+      const userToken = authService.getToken();
+      
+      if (!userToken) {
+        return { success: false, error: 'User not logged in' };
+      }
+
       const response = await fetch(`${this.baseURL}/verify`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
         },
         body: JSON.stringify({ password })
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        this.setToken(data.token);
-        return { success: true, token: data.token };
+      if (response.ok && data.status === 'verified') {
+        // Store admin password for subsequent requests
+        this.setAdminPassword(password);
+        return { success: true, user_id: data.user_id };
       } else {
         return { success: false, error: data.error || 'Invalid password' };
       }
@@ -151,12 +176,9 @@ class AdminService {
       formData.append('file', file);
       formData.append('path', targetPath);
 
-      const token = this.getToken();
       const response = await fetch(`${this.baseURL}/courses/upload`, {
         method: 'POST',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
+        headers: this.getFileUploadHeaders(),
         body: formData
       });
 
@@ -243,7 +265,7 @@ class AdminService {
    * Check if user is authenticated as admin
    */
   isAuthenticated() {
-    return !!this.getToken();
+    return !!authService.getToken() && !!this.getAdminPassword();
   }
 }
 
