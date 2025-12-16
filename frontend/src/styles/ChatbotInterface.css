@@ -964,8 +964,8 @@
   display: flex;
   flex-direction: column;
   /* Use app theme gradient to match header */
-  background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-  color: #ffffff;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   border-radius: 15px;
   box-shadow: 2px 0 20px rgba(66, 43, 99, 0.24);
   transition: all 0.28s ease;
@@ -1009,9 +1009,9 @@
 }
 
 .sidebar-toggle-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-primary);
   border: none;
-  color: #ecf0f1;
+  color: var(--color-primary-light);
   width: 28px;
   height: 28px;
   border-radius: 6px;
@@ -1062,7 +1062,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
@@ -1090,7 +1090,7 @@
 }
 
 .chat-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(215, 0, 0, 0.3);
 }
 
 .chat-list-loading,
@@ -1112,13 +1112,13 @@
 
 /* stronger hover effect: lift and subtle shadow */
 .chat-list-item:hover {
-  background: linear-gradient(90deg, rgba(83,162,167,0.06), rgba(166,187,149,0.03));
+  background: linear-gradient(90deg, var(--color-accent-1), rgba(166,187,149,0.03));
   transform: translateX(6px);
-  box-shadow: 0 6px 18px rgba(83, 162, 167, 0.12);
+  box-shadow: 0 6px 18px rgba(81, 173, 180, 0.2);
 }
 
 .chat-list-item-active {
-  background: linear-gradient(90deg, rgba(83,162,167,0.12), rgba(166,187,149,0.06));
+  background: linear-gradient(90deg, var(--color-primary), rgba(166,187,149,0.06));
   border-left-color: var(--color-primary);
 }
 

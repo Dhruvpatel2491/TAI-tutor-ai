@@ -15,19 +15,22 @@ import QuizInterface from '../components/QuizInterface';
 import '../styles/Quiz.css';
 import { renderPlanMarkdown } from "../utils/planFormatter";
 
-
-// Small reusable stats card with progress bar for percentage-like metrics
-function StatsCard({ title, value, max = 100, suffix = '' }) {
+function returnPercent(value, max) {
   const numeric = Number(value) || 0;
-  const percent = Math.min(100, Math.max(0, Math.round((numeric / Number(max || 100)) * 100)));
+  return Math.min(100, Math.max(0, Math.round((numeric / Number(max || 100)) * 100)));
+}
+// Small reusable stats card with progress bar for percentage-like metrics
+function StatsCard({ title, value, max = 100, suffix = '', progress_bar = true }) {
+  let percent = returnPercent(value, max);
 
   return (
     <div className="stat-card enhanced">
       <div className="stat-value">{value}{suffix}</div>
       <div className="stat-label">{title}</div>
+      {progress_bar !== false && (
       <div className="stat-bar" aria-hidden>
         <div className="stat-bar-fill" style={{ width: `${percent}%` }}></div>
-      </div>
+      </div>)}
     </div>
   );
 }
@@ -443,21 +446,9 @@ function QuizPage() {
             <div className="stats-grid">
               <StatsCard title="Overall Score" value={stats?.averageScore?.toFixed(0) ?? 0} suffix="%" max={100} />
               <StatsCard title="Best Score" value={stats?.bestScore?.toFixed(0) ?? 0} suffix="%" max={100} />
-
-              <div className="stat-card">
-                <div className="stat-value">{stats?.totalQuestionsAnswered ?? 0}</div>
-                <div className="stat-label">Questions Answered</div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-value">{stats?.total ?? 0}</div>
-                <div className="stat-label">Total Quizzes</div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-value">{stats?.completed ?? 0}</div>
-                <div className="stat-label">Completed</div>
-              </div>
+              <StatsCard title="Questions Answered" value={stats?.totalQuestionsAnswered ?? 0} progress_bar={false} />
+              <StatsCard title="Total Quizzes" value={stats?.total ?? 0} progress_bar={false} />
+              <StatsCard title="Completed" value={stats?.completed ?? 0} progress_bar={false} />
             </div>
           </div>
 

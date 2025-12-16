@@ -7,21 +7,25 @@ import '../styles/Quiz.css';
 import '../styles/CodeQuest.css';
 import { renderPlanMarkdown } from '../utils/planFormatter';
 
-function StatsCard({ title, value, max = 100, suffix = '' }) {
+function returnPercent(value, max) {
   const numeric = Number(value) || 0;
-  const percent = Math.min(100, Math.max(0, Math.round((numeric / Number(max || 100)) * 100)));
+  return Math.min(100, Math.max(0, Math.round((numeric / Number(max || 100)) * 100)));
+}
+// Small reusable stats card with progress bar for percentage-like metrics
+function StatsCard({ title, value, max = 100, suffix = '', progress_bar = false }) {
+  let percent = returnPercent(value, max);
 
   return (
     <div className="stat-card enhanced">
       <div className="stat-value">{value}{suffix}</div>
       <div className="stat-label">{title}</div>
+      {progress_bar !== false && (
       <div className="stat-bar" aria-hidden>
         <div className="stat-bar-fill" style={{ width: `${percent}%` }}></div>
-      </div>
+      </div>)}
     </div>
   );
 }
-
 const BASIC_CONCEPTS = [
   'Variables',
   'Conditionals',
@@ -261,7 +265,7 @@ export default function CodeQuestDashboardPage() {
         <div className="dashboard-right">
           <div className="quiz-form-container" style={{ flex: 1 }}>
             <div className="quiz-form-header">
-              <h2>CodeQuest Creation Form</h2>
+              <h3>CodeQuest Creation Form</h3>
             </div>
 
             <div className="quiz-form scroll-pane">

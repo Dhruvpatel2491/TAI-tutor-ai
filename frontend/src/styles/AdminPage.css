@@ -135,7 +135,7 @@
 /* Section Headers */
 .section-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;

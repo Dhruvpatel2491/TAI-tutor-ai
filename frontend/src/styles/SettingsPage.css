@@ -99,7 +99,7 @@
 
 .section-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-xl);
   padding-bottom: var(--spacing-md);
