@@ -5,6 +5,7 @@ This document describes the chat history feature implementation in TAI Tutor AI.
 ## Overview
 
 The chat history system allows users to:
+
 - Save and persist conversations with the AI tutor
 - View past conversations in a sidebar
 - Load and continue previous conversations
@@ -15,9 +16,9 @@ The chat history system allows users to:
 
 ### Backend Components
 
-#### `chat_manager.py`
+#### `backend/modules/chat.py`
 
-The core module for chat history management. Provides a lightweight JSON-backed store.
+The core module for chat history management. This repo stores chat sessions as per-user JSON files on disk under `user_data/chats/`. The `backend/modules/chat.py` module provides high-level CRUD and file management functions and is the authoritative implementation for session lifecycle.
 
 **Key Classes:**
 
@@ -43,20 +44,22 @@ The core module for chat history management. Provides a lightweight JSON-backed 
   - Thread-safe operations
 
 **Storage Structure:**
-```
+
+```md
 user_data/
 └── chats/
-    └── <user_email>/
-        ├── <chat_id_1>.json
-        ├── <chat_id_2>.json
-        └── ...
+  └── <user_email>/
+    ├── <chat_id_1>.json
+    ├── <chat_id_2>.json
+    └── ...
 ```
 
 ### API Endpoints
 
-All endpoints require authentication (unless `DISABLE_AUTH=true`).
+All endpoints require authentication (unless `DISABLE_AUTH=true` in environment).
 
 #### Create Chat Session
+
 ```http
 POST /chats
 Content-Type: application/json
@@ -66,6 +69,8 @@ Content-Type: application/json
 }
 
 Response: 201 Created
+
+```json
 {
   "chat_id": "uuid",
   "title": "...",
@@ -76,30 +81,14 @@ Response: 201 Created
 }
 ```
 
-#### List Chat Sessions
-```http
-GET /chats?include_archived=false&limit=50&offset=0
-
-Response: 200 OK
-{
-  "chats": [
-    {
-      "chat_id": "uuid",
-      "title": "...",
-      "created_at": "ISO timestamp",
-      "updated_at": "ISO timestamp",
-      "message_count": 5,
-      "archived": false
-    }
-  ]
-}
-```
-
 #### Get Chat Session
+
 ```http
 GET /chats/<chat_id>
 
 Response: 200 OK
+
+```json
 {
   "chat_id": "uuid",
   "title": "...",
@@ -119,6 +108,7 @@ Response: 200 OK
 ```
 
 #### Add Message
+
 ```http
 POST /chats/<chat_id>/messages
 Content-Type: application/json
@@ -130,6 +120,8 @@ Content-Type: application/json
 }
 
 Response: 201 Created
+
+```json
 {
   "message_id": "uuid",
   "role": "...",
@@ -140,10 +132,13 @@ Response: 201 Created
 ```
 
 #### Delete Chat Session
+
 ```http
 DELETE /chats/<chat_id>
 
 Response: 200 OK
+
+```json
 {
   "status": "deleted",
   "chat_id": "uuid"
@@ -151,6 +146,7 @@ Response: 200 OK
 ```
 
 #### Archive/Unarchive Chat
+
 ```http
 POST /chats/<chat_id>/archive
 Content-Type: application/json
@@ -160,6 +156,8 @@ Content-Type: application/json
 }
 
 Response: 200 OK
+
+```json
 {
   "status": "archived" | "unarchived",
   "chat_id": "uuid"
@@ -167,6 +165,7 @@ Response: 200 OK
 ```
 
 #### Update Chat Title
+
 ```http
 PUT /chats/<chat_id>/title
 Content-Type: application/json
@@ -176,6 +175,8 @@ Content-Type: application/json
 }
 
 Response: 200 OK
+
+```json
 {
   "status": "updated",
   "chat_id": "uuid",
@@ -202,143 +203,54 @@ const { chats } = await chatService.listChats({ includeArchived: false });
 const chatWithMessages = await chatService.getChat(chatId);
 
 // Add a message
-await chatService.addMessage(chatId, {
-  role: 'user',
-  content: 'Hello!'
-});
+### API Endpoints
 
-// Delete a chat
-await chatService.deleteChat(chatId);
+All endpoints require authentication (unless `DISABLE_AUTH=true` in environment).
 
-// Archive a chat
-await chatService.archiveChat(chatId, { archive: true });
+#### Create Chat Session
+
+```http
+POST /chats
+Content-Type: application/json
+
+{ "title": "optional title" }
 ```
 
-#### `ChatbotInterface.js`
+Response: 201 Created
 
-The main chat interface component with integrated history sidebar.
-
-**New State Variables:**
-- `showChatSidebar`: Controls sidebar visibility
-- `chatList`: Array of chat summaries
-- `currentChatId`: Currently active chat ID
-- `loadingChats`: Loading state for chat list
-- `showArchived`: Filter for archived chats
-
-**Key Functions:**
-- `loadChatList()`: Fetches chat summaries from API
-- `loadChat(chatId)`: Loads a specific conversation
-- `handleNewChat()`: Starts a new conversation
-- `handleDeleteChat(chatId)`: Deletes a conversation
-- `handleArchiveChat(chatId, archive)`: Archives/unarchives
-
-**Integration with sendMessage:**
-1. On first message, creates new chat session
-2. Stores chat_id in state
-3. Saves both user and assistant messages
-4. Updates chat list after each exchange
-
-### CSS Styles
-
-New styles in `ChatbotInterface.css`:
-- `.chat-sidebar`: Left sidebar container
-- `.sidebar-open`/`.sidebar-closed`: Visibility states
-- `.new-chat-btn`: New conversation button
-- `.chat-list`: Scrollable list container
-- `.chat-list-item`: Individual chat entry
-- `.chat-list-item-active`: Currently selected chat
-- `.chat-list-item-archived`: Archived chat styling
-
-## Data Flow
-
-### Creating a New Chat
-
-```
-User types message → sendMessage()
-                   ↓
-         currentChatId null?
-              ↓ yes
-    chatService.createChat()
-              ↓
-    Store chat_id in state
-              ↓
-    Send query to /query_v3
-              ↓
-    Save user message to chat
-              ↓
-    Save assistant response to chat
-              ↓
-    Refresh chat list
+```json
+{
+  "chat_id": "uuid",
+  "title": "...",
+  "created_at": "ISO timestamp",
+  "updated_at": "ISO timestamp",
+  "messages": [],
+  "archived": false
+}
 ```
 
-### Loading a Previous Chat
+#### List Chat Sessions
 
-```
-User clicks chat in sidebar → loadChat(chatId)
-                            ↓
-                  chatService.getChat()
-                            ↓
-                  Convert messages to UI format
-                            ↓
-                  Set currentChatId
-                            ↓
-                  Update messages state
-                            ↓
-                  Scroll to bottom
+```http
+GET /chats?include_archived=false&limit=50&offset=0
 ```
 
-## Configuration
+Response: 200 OK
 
-### Environment Variables
-
-- `CHAT_STORE_DIR`: Base directory for chat storage (default: `user_data/chats`)
-- `DISABLE_AUTH`: Set to 'true' to disable authentication for testing
-
-### Frontend Configuration
-
-Backend URL is configured in `src/config.js`:
-```javascript
-export const DEFAULT_BACKEND_URL = 'http://localhost:5000';
+```json
+{
+  "chats": [
+    {
+      "chat_id": "uuid",
+      "title": "...",
+      "created_at": "ISO timestamp",
+      "updated_at": "ISO timestamp",
+      "message_count": 5,
+      "archived": false
+    }
+  ]
+}
 ```
-
-## Testing
-
-### Unit Tests
-
-Run backend unit tests:
-```bash
-cd backend_test
-pytest test_chat_manager.py -v
-```
-
-Tests cover:
-- Message creation and serialization
-- Session management
-- CRUD operations
-- Edge cases (unicode, large messages, etc.)
-- User isolation
-
-### Integration Tests
-
-Run API integration tests:
-```bash
-cd backend_test
-pytest test_chat_api_integration.py -v
-```
-
-Tests cover:
-- All API endpoints
-- Authentication
-- Error handling
-- Data integrity
-- Complete conversation flows
-
-## Security Considerations
-
-1. **User Isolation**: Users can only access their own chats
-2. **Authentication**: All endpoints require valid JWT (when auth enabled)
-3. **Input Validation**: Role must be 'user' or 'assistant'
-4. **File Path Sanitization**: User IDs are sanitized for filesystem safety
 
 ## Future Enhancements
 
