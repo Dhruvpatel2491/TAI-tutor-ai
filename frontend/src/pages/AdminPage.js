@@ -312,7 +312,7 @@ const AdminPage = () => {
   };
 
   const handleLogout = () => {
-    adminService.clearToken();
+    adminService.clearAdminPassword();
     navigate('/settings');
   };
 
