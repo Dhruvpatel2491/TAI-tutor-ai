@@ -338,6 +338,39 @@ export const authService = {
     return () => window.removeEventListener('auth_token_changed', handler);
   },
 
+  // Get user statistics from backend
+  async getUserStats() {
+    const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
+    if (!base) {
+      throw new Error('Backend URL not configured');
+    }
+    
+    const token = authService.getToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const res = await fetch(`${base}/auth/user/stats`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch user stats');
+      }
+      let response = await res.json();
+      return response;
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+      throw err;
+    }
+  },
+
   // Expose derive for tests
   derivePasswordHash,
   _internal: { loadUsers, saveUsers }

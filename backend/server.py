@@ -949,6 +949,114 @@ def auth_login():
 	return jsonify({"token": token}), 200
 
 
+@app.route("/auth/user/stats", methods=["GET"])
+def get_user_stats():
+	"""
+	Get user statistics including chats, plans, quizzes, and CodeQuest scores.
+	
+	GET /auth/user/stats
+	Headers: Authorization: Bearer <token>
+	
+	Response: {
+		"name": "...",
+		"email": "...",
+		"chats_count": 0,
+		"plans_count": 0,
+		"quiz_score": 0,
+		"codequest_score": 0
+	}
+	"""
+	user_id, error_response = _get_user_id_from_request()
+	if error_response:
+		return error_response
+	
+	try:
+		# Get user profile
+		user_profile = auth.get_user_profile(user_id)
+		name = user_profile.get("name", "N/A") if user_profile else "N/A"
+		
+		# Count chats
+		chats_count = len(chat_manager.list_chats(user_id))
+		
+		# Count plans (saved plans)
+		plans_dir = Path("user_data/saved_plans") / user_id
+		plans_count = 0
+		base_user_saved_plans = Path(MAIN_PROJECT_DIR) / "user_data" / "saved_plans" / str(user_id)
+		
+		exact = base_user_saved_plans
+		if exact.exists() and exact.is_dir():
+			for p in exact.iterdir():
+				if p.is_file() and p.suffix == ".json":
+					plans_count += 1
+
+
+		
+		# Calculate quiz score
+		quiz_score = 0
+		quiz_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "quiz" / user_id
+		if quiz_dir.exists():
+			overall_score=0
+			quiz_count=0
+			for quiz_file in quiz_dir.glob("*.json"):
+				try:
+					with open(quiz_file, 'r') as f:
+						quiz_data = json.load(f)
+						overall_score+=quiz_data.get("score",0)
+						quiz_count+=1
+
+							
+				except Exception:
+					print("Error reading quiz file",quiz_file)
+
+			quiz_score=round(overall_score/quiz_count,1) if quiz_count>0 else 0
+			# print("Quiz Score",quiz_score)
+		
+		# Calculate CodeQuest score
+		codequest_score = 0
+		total_que=0
+		sessions_dir = Path(MAIN_PROJECT_DIR) / "user_data" / "codequest" / "sessions" / str(user_id).replace("@", "__at__").replace(".", "__dot__")
+		if sessions_dir.exists():
+			user_sessions = []
+			for session_file in sessions_dir.glob("*.json"):
+				try:
+					with open(session_file, 'r') as f:
+						session_data = json.load(f)
+						user_sessions.append(session_data)
+				except Exception:
+					print("Error reading session file", session_file)
+
+			print("User Sessions:", len(user_sessions))
+			for session in user_sessions:
+				if session.get("status") is not None:
+					results = session.get("results") or {}
+					# results is expected to be a dict: challenge_id -> result_dict
+					if isinstance(results, dict):
+						for r in results.values():
+							try:
+								# print("Question Passed", r.get("passed"))
+								if bool(r.get("passed")):
+									codequest_score += 1
+								total_que += 1
+							except Exception:
+								# skip malformed entries
+								continue
+
+			codequest_score = round(codequest_score / total_que * 100, 1) if total_que > 0 else 0
+			# print("CodeQuest Score:", codequest_score, "Overall CQ Score:", codequest_score)
+		return jsonify({
+			"name": name,
+			"email": user_id,
+			"chats_count": chats_count,
+			"plans_count": plans_count,
+			"quiz_score": quiz_score,
+			"codequest_score": codequest_score
+		}), 200
+		
+	except Exception as e:
+		logger.exception("Failed to get user stats")
+		return jsonify({"error": str(e)}), 500
+
+
 ### Chat History API
 # Import chat_manager module
 try:
@@ -1624,6 +1732,7 @@ def list_plans():
 			return jsonify({"error": "missing user_id query parameter"}), 400
 
 	plans = default_planner.list_plans_for_user(user_id)
+	# print("plans", plans)
 	out = []
 	for p in plans:
 		try:
@@ -1874,6 +1983,7 @@ def list_saved_plans():
 			if exact.exists() and exact.is_dir():
 				for p in exact.rglob('*.json'):
 					candidates.append(p)
+					# print("candidates", candidates)	
 				continue
 			# Fallback: try plural/singular and approximate matches where the
 			# directory name contains the provided user_id (handles emails vs short ids)

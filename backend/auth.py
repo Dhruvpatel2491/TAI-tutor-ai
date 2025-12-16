@@ -169,3 +169,24 @@ def user_exists(email: str) -> bool:
     email = (email or "").strip().lower()
     return _user_file_path(email).exists()
 
+
+def get_user_profile(email: str) -> dict:
+    """Get user profile data from disk. Returns dict with name, email, created_at, or empty dict if not found."""
+    if not email:
+        return {}
+    email = email.strip().lower()
+    p = _user_file_path(email)
+    if not p.exists():
+        return {"email": email, "name": "N/A"}
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return {
+            "email": data.get("email", email),
+            "name": data.get("name", "N/A"),
+            "created_at": data.get("created_at", ""),
+        }
+    except Exception:
+        return {"email": email, "name": "N/A"}
+
+

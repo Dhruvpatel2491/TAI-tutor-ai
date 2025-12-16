@@ -9,6 +9,7 @@ import QuizPage from './pages/QuizPage';
 import CodeQuestDashboardPage from './pages/CodeQuestDashboardPage';
 import CodeQuestSessionPage from './pages/CodeQuestSessionPage';
 import CodeQuestFeedbackPage from './pages/CodeQuestFeedbackPage';
+import SettingsPage from './pages/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PlannerPanel from './components/PlannerPanel';
 import { authService } from './services/authService';
@@ -30,7 +31,7 @@ function Header() {
       if (server && server.email) {
         setEffectiveEmail(server.email);
         setEffectiveName(server.name);
-        console.log('Using server user for effectiveEmail:', server);
+        // console.log('Using server user for effectiveEmail:', server);
       } else {
         const localUser = authService.getCurrentUser();
         if (localUser && localUser.email) {
@@ -103,6 +104,9 @@ function Header() {
             <li>
               <Link to="/codequest" className={`tab ${isActive('/codequest') ? 'tab-active' : ''}`}>CodeQuest</Link>
             </li>
+            <li>
+              <Link to="/settings" className={`tab ${isActive('/settings') ? 'tab-active' : ''}`}>Settings</Link>
+            </li>
           </ul>
         </nav>
 
@@ -134,6 +138,7 @@ function App() {
               <Route path="/codequest" element={<ProtectedRoute><CodeQuestDashboardPage /></ProtectedRoute>} />
               <Route path="/codequest/:sessionId" element={<ProtectedRoute><CodeQuestSessionPage /></ProtectedRoute>} />
               <Route path="/codequest/:sessionId/feedback" element={<ProtectedRoute><CodeQuestFeedbackPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
             </Routes>
           </div>
