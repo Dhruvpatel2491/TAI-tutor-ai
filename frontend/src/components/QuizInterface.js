@@ -53,6 +53,13 @@ function QuizInterface({ quiz, onComplete, onExit }) {
     }
   }, [currentQuestionIndex, quizState, currentQuestion]);
 
+  // Populate the answeredQuestions set when quizState.user_responses is available
+  useEffect(() => {
+    if (quizState?.user_responses && Array.isArray(quizState.user_responses)) {
+      setAnsweredQuestions(new Set(quizState.user_responses.map(r => r.question_id)));
+    }
+  }, [quizState.user_responses]);
+
   const handleAnswerSelect = (answer) => {
     if (answeredQuestions.has(currentQuestion?.question_id)) return;
     setSelectedAnswer(answer);
@@ -81,12 +88,23 @@ function QuizInterface({ quiz, onComplete, onExit }) {
 
       setAnsweredQuestions(prev => new Set([...prev, currentQuestion.question_id]));
 
-      // Update local quiz state with new score
+      // Update local quiz state with new score and record the user's response locally
       setQuizState(prev => ({
         ...prev,
         score: result.current_score,
         correct_answers: result.questions_answered,
-        status: result.status
+        status: result.status,
+        user_responses: [
+          ...(prev.user_responses || []),
+          {
+            question_id: currentQuestion.question_id,
+            user_answer: selectedAnswer,
+            is_correct: result.is_correct,
+            correct_answer: result.correct_answer,
+            time_taken: timeTaken,
+            explanation: result.explanation
+          }
+        ]
       }));
 
     } catch (error) {
@@ -463,16 +481,20 @@ function QuizInterface({ quiz, onComplete, onExit }) {
             <div className="pills-grid">
               {questions.map((q, idx) => {
                 const isCurrentPill = idx === currentQuestionIndex;
-                const isAnsweredPill = answeredQuestions.has(q.question_id);
                 const response = quizState.user_responses?.find(r => r.question_id === q.question_id);
-                const isCorrectPill = response?.is_correct;
-                
+                const isAnsweredPill = Boolean(response || answeredQuestions.has(q.question_id));
+                // Prefer explicit server response correctness; if not available, fall back to current feedback when on the same question
+                const isCorrectPill = response?.is_correct ?? (isAnsweredPill && idx === currentQuestionIndex ? feedback?.isCorrect : undefined);
+
                 let pillClass = 'question-pill';
                 if (isCurrentPill) pillClass += ' current';
                 if (isAnsweredPill) {
-                  pillClass += isCorrectPill ? ' correct' : ' incorrect';
+                  // mark as answered first, then add correctness class only when known
+                  pillClass += ' answered';
+                  if (isCorrectPill === true) pillClass += ' correct';
+                  else if (isCorrectPill === false) pillClass += ' incorrect';
                 }
-                
+
                 return (
                   <button
                     key={q.question_id}

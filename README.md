@@ -67,6 +67,14 @@ If you don't have Ollama available during development or CI you can set the envi
   - See conversation previews with titles and timestamps
   - See [docs/CHAT_HISTORY.md](docs/CHAT_HISTORY.md) for detailed documentation
 
+  Note: CodeQuest runs in a simplified mode. The backend does NOT execute user code and does NOT return stdout/stderr or test-case details.
+  Submissions are evaluated via (a) best-effort LLM grading when available, with a deterministic fallback that checks the expected function signature is present.
+
+- **CodeQuest**: Practice coding challenges with per-user sessions stored under `user_data/codequest/`.
+  - Backend endpoints live in `backend/server.py` under the CodeQuest section.
+  - Storage + session logic lives in `backend/codequest_manager.py`.
+  - The frontend CodeQuest pages live in `frontend/src/pages/CodeQuest*Page.js`.
+
 ## Environment variables (common)
 
 - `DISABLE_AUTH` — set to `true` to run the backend in dev mode without auth checks (NOT for production).

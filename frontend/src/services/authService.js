@@ -166,11 +166,11 @@ function uuidv4() {
 }
 
 export const authService = {
-  async register(email, password, remember = false) {
+  async register(email, password, name = '', remember = false) {
     // Try backend register first (if backend URL configured). If backend not
     // available, fall back to local demo storage behavior.
     const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
-    const payload = { email: email.trim().toLowerCase(), password };
+    const payload = { email: email.trim().toLowerCase(), password, name: name.trim() };
     if (base) {
       try {
         const res = await fetch(`${base}/auth/register`, {
@@ -199,7 +199,7 @@ export const authService = {
     if (!users[lower]) {
       const salt = makeSalt();
       const passwordHash = await derivePasswordHash(password, salt);
-      users[lower] = { email: lower, salt, passwordHash, createdAt: now };
+      users[lower] = { name: name.trim(), email: lower, salt, passwordHash, createdAt: now };
       saveUsers(users);
     } else {
       throw new Error('User already exists (local)');
@@ -258,7 +258,8 @@ export const authService = {
     const users = loadUsers();
     // console.log('authService.getCurrentUser: users[session.email]', Object.values(users)[0]);
     const u = Object.values(users)[0];
-    return u ? { email: u.email, createdAt: u.createdAt } : null;
+    // console.table('authService.getCurrentUser: u', u);
+    return u ? { email: u.email, createdAt: u.createdAt , name: u?.name } : null;
   },
 
   getSessionToken() {
@@ -335,6 +336,39 @@ export const authService = {
     const handler = (e) => cb(e.detail && e.detail.token ? e.detail.token : null);
     window.addEventListener('auth_token_changed', handler);
     return () => window.removeEventListener('auth_token_changed', handler);
+  },
+
+  // Get user statistics from backend
+  async getUserStats() {
+    const base = (process.env.REACT_APP_BACKEND_URL || '').replace(/\/$/, '') || '';
+    if (!base) {
+      throw new Error('Backend URL not configured');
+    }
+    
+    const token = authService.getToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const res = await fetch(`${base}/auth/user/stats`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch user stats');
+      }
+      let response = await res.json();
+      return response;
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+      throw err;
+    }
   },
 
   // Expose derive for tests

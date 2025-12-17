@@ -178,7 +178,7 @@ export async function getOrCreateChat(chatId, { title = null, backendURL = DEFAU
       return chat;
     } catch (error) {
       // Chat not found, create new one
-      console.log('Chat not found, creating new one');
+      console.error('Chat not found, creating new one');
     }
   }
   return createChat({ title, backendURL });

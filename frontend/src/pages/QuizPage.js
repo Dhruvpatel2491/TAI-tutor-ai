@@ -13,6 +13,27 @@ import { apiGet } from '../services/http';
 import quizService from '../services/quizService';
 import QuizInterface from '../components/QuizInterface';
 import '../styles/Quiz.css';
+import { renderPlanMarkdown } from "../utils/planFormatter";
+
+function returnPercent(value, max) {
+  const numeric = Number(value) || 0;
+  return Math.min(100, Math.max(0, Math.round((numeric / Number(max || 100)) * 100)));
+}
+// Small reusable stats card with progress bar for percentage-like metrics
+function StatsCard({ title, value, max = 100, suffix = '', progress_bar = true }) {
+  let percent = returnPercent(value, max);
+
+  return (
+    <div className="stat-card enhanced">
+      <div className="stat-value">{value}{suffix}</div>
+      <div className="stat-label">{title}</div>
+      {progress_bar !== false && (
+      <div className="stat-bar" aria-hidden>
+        <div className="stat-bar-fill" style={{ width: `${percent}%` }}></div>
+      </div>)}
+    </div>
+  );
+}
 
 function QuizPage() {
   // View states: 'dashboard', 'new', 'taking'
@@ -278,9 +299,13 @@ function QuizPage() {
 
             <div className="plan-preview">
               <h3>Plan Preview</h3>
+
               <div className={`plan-preview-body scroll-pane ${selectedPlan ? '' : 'empty'}`}>
                 {selectedPlan ? (
-                  <pre>{selectedPlan.plan_text || 'No preview available.'}</pre>
+                  <div
+                    className="plan-markdown-preview"
+                    dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan.plan_text || '') }}
+                  />
                 ) : (
                   'No plan selected'
                 )}
@@ -387,6 +412,15 @@ function QuizPage() {
   }
 
   // Render Dashboard
+  const recentScores = (quizzes || [])
+    .slice()
+    .filter(q => q.score != null)
+    .sort((a, b) => {
+      const da = a.date_taken ? new Date(a.date_taken).getTime() : 0;
+      const db = b.date_taken ? new Date(b.date_taken).getTime() : 0;
+      return db - da;
+    })
+    .slice(0, 3);
   return (
     <div className="quiz-page dashboard-view">
       <h1>Quiz Section</h1>
@@ -410,30 +444,11 @@ function QuizPage() {
           {/* Left Column — Stats Grid */}
           <div className="dashboard-left">
             <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-value">{stats?.averageScore?.toFixed(0) ?? 0}%</div>
-                <div className="stat-label">Overall Score</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats?.avgTimePerQuestion?.toFixed(1) ?? '—'}s</div>
-                <div className="stat-label">Avg Time / Q</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats?.totalQuestionsAnswered ?? 0}</div>
-                <div className="stat-label">Questions Answered</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats?.total ?? 0}</div>
-                <div className="stat-label">Total Quizzes</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats?.completed ?? 0}</div>
-                <div className="stat-label">Completed</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats?.bestScore?.toFixed(0) ?? 0}%</div>
-                <div className="stat-label">Best Score</div>
-              </div>
+              <StatsCard title="Overall Score" value={stats?.averageScore?.toFixed(0) ?? 0} suffix="%" max={100} />
+              <StatsCard title="Best Score" value={stats?.bestScore?.toFixed(0) ?? 0} suffix="%" max={100} />
+              <StatsCard title="Questions Answered" value={stats?.totalQuestionsAnswered ?? 0} progress_bar={false} />
+              <StatsCard title="Total Quizzes" value={stats?.total ?? 0} progress_bar={false} />
+              <StatsCard title="Completed" value={stats?.completed ?? 0} progress_bar={false} />
             </div>
           </div>
 
@@ -443,6 +458,22 @@ function QuizPage() {
               <button className="btn btn-primary full-width" onClick={handleNewQuiz}>
                 + Create New Quiz
               </button>
+            </div>
+
+            <div className="recent-scores">
+              <h3>Recent Scores</h3>
+              <ul>
+                {recentScores.length === 0 ? (
+                  <li className="empty">No recent scores</li>
+                ) : (
+                  recentScores.map(q => (
+                    <li key={q.quiz_id} className="rs-item">
+                      <span className="rs-title">{q.quiz_title}</span>
+                      <span className="rs-score">{q.score != null ? Math.round(q.score) + '%' : '—'}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
 
             <div className="quiz-list-section">

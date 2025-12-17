@@ -1,32 +1,50 @@
 .App {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  background: var(--color-bg-page);
+  padding: 0;
+}
+
+.app-container {
+  width: var(--app-width, 95vw);
+  height: var(--app-height, 95vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 /* Basic styling for rendered markdown tables in planner previews */
 .md-table {
   border-collapse: collapse;
   width: 100%;
-  margin: 8px 0;
+  margin: var(--spacing-sm) 0;
   font-size: 14px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 .md-table th,
 .md-table td {
-  border: 1px solid #e1e1e1;
-  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
 }
 .md-table thead th {
-  background: #f5f7fb;
+  background: var(--color-bg-secondary);
   font-weight: 600;
+  color: var(--color-text-primary);
 }
 .md-table tbody tr:nth-child(odd) {
-  background: #ffffff;
+  background: var(--color-bg-primary);
 }
 .md-table tbody tr:nth-child(even) {
-  background: #fafafa;
+  background: var(--color-bg-secondary);
+}
+.md-table tbody tr:hover {
+  background: var(--color-primary-light);
 }

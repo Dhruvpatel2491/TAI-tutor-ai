@@ -9,6 +9,15 @@ const escapeHtml = (unsafe) => {
     .replace(/>/g, "&gt;");
 };
 
+// Format inline markup: bold (**text**) and inline code (`code`)
+const formatInline = (text) => {
+  const escaped = escapeHtml(text || "");
+  // bold first, then inline code
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`(.+?)`/g, "<code style=\"background-color:#ccc;padding:2px 4px;border-radius:4px;\">$1</code>");
+};
+
 export function renderPlanMarkdown(md) {
   if (!md) return "";
   const raw = String(md || "");
@@ -58,7 +67,7 @@ export function renderPlanMarkdown(md) {
       for (let k = 0; k < rawHeaderParts.length; k++) {
         const h = (rawHeaderParts[k] || "").trim();
         if (h === "") continue;
-        headerCells.push(escapeHtml(h));
+        headerCells.push(formatInline(h));
         const sep = (rawSepParts[k] || "").trim();
         // determine alignment from separator markers: :--- left, ---: right, :---: center
         let align = "left";
@@ -83,7 +92,7 @@ export function renderPlanMarkdown(md) {
           const hpart = (rawHeaderParts[k] || "").trim();
           if (hpart === "") continue; // skip positions that were empty in header
           const cell = (rawRowParts[k] || "").trim();
-          rowCells.push(escapeHtml(cell));
+          rowCells.push(formatInline(cell));
           headerIndex += 1;
         }
         rows.push(rowCells);
@@ -110,8 +119,7 @@ export function renderPlanMarkdown(md) {
       continue;
     }
 
-    let safeLine = escapeHtml(line);
-    safeLine = safeLine.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    let safeLine = formatInline(line);
 
     const ulMatch = line.match(/^[-+*]\s+(.*)$/);
     const olMatch = line.match(/^\d+\.\s+(.*)$/);
@@ -122,23 +130,23 @@ export function renderPlanMarkdown(md) {
 
     if (ulMatch) {
       if (!inUl) { out.push("<ul>"); inUl = true; }
-      out.push(`<li>${escapeHtml(ulMatch[1])}</li>`);
+      out.push(`<li>${formatInline(ulMatch[1])}</li>`);
       continue;
     } else if (olMatch) {
       if (!inOl) { out.push("<ol>"); inOl = true; }
-      out.push(`<li>${escapeHtml(olMatch[1])}</li>`);
+      out.push(`<li>${formatInline(olMatch[1])}</li>`);
       continue;
     } else if (h3) {
-      out.push(`<h3>${escapeHtml(h3[1])}</h3>`);
+      out.push(`<h3>${formatInline(h3[1])}</h3>`);
       continue;
     } else if (h2) {
-      out.push(`<h2>${escapeHtml(h2[1])}</h2>`);
+      out.push(`<h2>${formatInline(h2[1])}</h2>`);
       continue;
     } else if (h1) {
-      out.push(`<h1>${escapeHtml(h1[1])}</h1>`);
+      out.push(`<h1>${formatInline(h1[1])}</h1>`);
       continue;
     } else if (strongOnly) {
-      out.push(`<h2>${escapeHtml(strongOnly[1])}</h2>`);
+      out.push(`<h2>${formatInline(strongOnly[1])}</h2>`);
       continue;
     }
 

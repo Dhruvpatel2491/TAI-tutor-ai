@@ -1,20 +1,43 @@
+# .gitignore for TAI-tutor-ai
+# Purpose: ignore local, runtime, build and generated artifacts that should not be committed.
+
+# Python virtual environment
 .venv
 
-.pytest_cache
-
-backend/__pycache__
-backend_test/__pycache__
-backend/vector_index_store/*
-
-test/__pycache__
-
-frontend/node_modules/*
-frontend/.env
-
-data/base-data/CSC15_F25/LongAssignment2/__pycache__/functions.cpython-311.pyc
-
-z-script
+# Local prompt drafts (not part of repository)
 .github/prompts
 
+# Pytest cache
+.pytest_cache
 
+# Runtime / local persistence (do not commit user data or persisted vector index)
+user_data/
+vector_index_store/
 
+# Test bytecode caches
+test/__pycache__
+
+# Frontend dependencies and build artifacts
+frontend/node_modules/*
+frontend/.env
+frontend/build
+frontend/build/*
+
+# Backend Python bytecode caches and caches
+backend/__pycache__
+backend/admin/__pycache__
+backend/modules/__pycache__
+backend/api/__pycache__
+backend/rag/__pycache__
+backend/prompts/__pycache__
+backend/auth/__pycache__
+backend_test/__pycache__
+
+backend/__pycache__/*
+backend/admin/__pycache__/*
+backend/modules/__pycache__/*
+backend/api/__pycache__/*
+backend/rag/__pycache__/*
+backend/prompts/__pycache__/*
+backend/auth/__pycache__/*
+backend_test/__pycache__/*

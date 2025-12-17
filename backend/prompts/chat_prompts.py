@@ -1,7 +1,7 @@
 """
-ChatPrompter - Manages different prompt templates for various response styles and types.
+Chat-related prompts for TAI Tutor AI.
 
-This module provides centralized prompt management for the TAI Tutor AI system.
+This module provides centralized prompt management for the chat system.
 It supports:
 - Response Styles: Formal, Casual, Technical
 - Response Types: Direct, Hinting, Socratic
@@ -236,7 +236,10 @@ When answering questions about code:
         )
 
 
-# Convenience functions for quick prompt generation
+# =============================================================================
+# Convenience Functions
+# =============================================================================
+
 def get_hint_prompt(question: str, style: str = "formal") -> str:
     """Generate a hint-mode prompt."""
     prompter = ChatPrompter(style=style, response_type="hinting", length="medium")
@@ -255,7 +258,10 @@ def get_socratic_prompt(question: str, style: str = "formal") -> str:
     return prompter.build_full_prompt(question)
 
 
-# Default instances for common use cases
+# =============================================================================
+# Default Prompter Instances
+# =============================================================================
+
 DEFAULT_PROMPTER = ChatPrompter()
 HINT_PROMPTER = ChatPrompter(response_type="hinting")
 SOCRATIC_PROMPTER = ChatPrompter(response_type="socratic")

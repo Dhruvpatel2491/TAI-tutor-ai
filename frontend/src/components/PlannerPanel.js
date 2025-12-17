@@ -463,7 +463,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
           <div style={{ marginTop: 12 }}>
             <h4>Formatted Preview</h4>
             <div
-              style={{ background: "#fafafa", padding: 12 }}
+              style={{ background: "#fafafa", padding: 35 }}
               dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || (selectedPlan && selectedPlan.text) || "") }}
             />
           </div>
@@ -488,7 +488,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         <div style={{ display: "flex", gap: 8 }} />
       </div>
       <div style={{ marginTop: 12 }}>
-        <div style={{ background: "#fafafa", padding: 12 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
+        <div style={{ background: "#fafafa", padding: 35 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
       </div>
     </div>
   );
@@ -880,7 +880,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
               <div
                 className="muted"
                 style={{
-                  padding: 12,
+                  padding: '20px',
                   minHeight: 240,
                   border: "1px dashed #eee",
                   borderRadius: 6,

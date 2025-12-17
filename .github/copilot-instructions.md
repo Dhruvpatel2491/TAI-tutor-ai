@@ -1,46 +1,49 @@
 <!-- Copilot instructions for TAI-tutor-ai (concise, actionable) -->
 # TAI-tutor-ai — Copilot instructions
 
-This file gives targeted, repo-specific guidance so an AI coding agent can be productive quickly.
+Purpose: give an AI coding agent the minimal, targeted knowledge to be productive here.
 
-- Big picture
-  - Backend: Flask app at `backend/server.py`. Key endpoints: `/health`, `/query`, `/query_v2`, `/rebuild`.
-    The server wires LlamaIndex (index/query) + local Ollama LLMs for responses.
-  - Indexing/ingestion: `backend/vector_store_gen.py` builds and persists the vector index in `vector_index_store/` (`docstore.json`, `embeddings_meta.json`, `vector_index_store.json`). Parsers for `.pdf`, `.pptx`, `.ipynb`, `.py` live here; tree-sitter support exists for code parsing.
-  - Frontend: React app in `frontend/` calls the backend HTTP APIs. UI components live under `frontend/src/components` and services under `frontend/src/services`.
+Big picture
+- Backend: Flask app at [backend/server.py](../backend/server.py). Key APIs: `/health`, `/query`, `/query_v2`, `/rebuild`. It composes LlamaIndex for retrieval + Ollama local LLMs for responses.
+- Indexing: [backend/vector_store_gen.py](../backend/vector_store_gen.py) creates a persisted vector index in `vector_index_store/` (files: `docstore.json`, `embeddings_meta.json`, `index_store.json`). Parsers for PDFs, PPTX, notebooks and code live in this file.
+- Frontend: React app in `frontend/` calls the backend. UI components live under `frontend/src/components`; calls/logic in `frontend/src/services` and pages under `frontend/src/pages`.
 
-  - Chat history / sessions: a local, JSON-backed chat history feature stores per-user chat sessions under `user_data/chats/` (one file per session). Backend helpers live in `backend/chat_manager.py` and the frontend uses `frontend/src/services/chatService.js` to call chat endpoints. Server endpoints for chats were added (e.g., create/list/get/add-message/delete/archive/update title) and are useful for persisting conversation state.
+State & persistence hotspots
+- Chat sessions: JSON files in `user_data/chats/<user>/` — managed by [backend/chat_manager.py](../backend/chat_manager.py). This module is authoritative for chat CRUD and uses atomic write patterns (temp file + replace).
+- Vector index: `vector_index_store/` is the single source of truth for persisted embeddings/index artifacts.
+- CodeQuest: challenge/session data persisted under `user_data/codequest/`; back-end logic in [backend/codequest_manager.py](../backend/codequest_manager.py) and LLM helpers in [backend/llm_codequest.py](../backend/llm_codequest.py). Note: CodeQuest does NOT execute user code server-side.
 
-- Quick run & test (concrete)
-  - Backend (dev): from repo root: `cd backend && python server.py` (port can be overridden with env var `BACKEND_PORT`).
-  - Frontend: `cd frontend && npm install && npm start` (uses `frontend/src/config.js` for base URL overrides).
-  - Tests: backend tests are under `backend_test/` and can be run after starting the backend: `pytest backend_test/`.
+Quick run & test
+- Start backend (dev): from repo root: `cd backend && python server.py` (use `BACKEND_PORT` env var to override).
+- Frontend (dev): `cd frontend && npm install && npm start` (base URL config: `frontend/src/config.js`).
+- Tests: backend tests in `backend_test/`. Run them after starting the backend: `pytest backend_test/`.
 
-- Edit contracts & hotspots (where to change behavior)
-  - LLM / embedding defaults: edit constants in `backend/server.py` (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`, `DEFAULT_*`). Prefer env var overrides.
-  - Index build: change parsing/chunking in `backend/vector_store_gen.py` (see `get_or_create_index()` and `indexing` dict parameters: `parser`, `chunk_size`, `chunk_overlap`).
-  - Embedding metadata: persist updates using `save_embedding_metadata()`; the index store files in `vector_index_store/` are authoritative for persisted state.
-  - Chat storage and session lifecycle: `backend/chat_manager.py` is the source of truth for chat session CRUD and persisted files under `user_data/chats/`. When modifying chat behavior, update that module and ensure atomic writes (it uses temp-file + replace).
+Edit hotspots & where to change behavior
+- LLM/embedding defaults and model selection: edit constants in [backend/server.py](../backend/server.py) (e.g., `OLLAMA_LLM`, `OLLAMA_EMBED`). Prefer env var overrides.
+- Indexing/parsing behavior: modify `get_or_create_index()` and the `indexing` config in [backend/vector_store_gen.py](../backend/vector_store_gen.py) (`parser`, `chunk_size`, `chunk_overlap`).
+- Chat persistence: modify [backend/chat_manager.py](../backend/chat_manager.py). Preserve atomic write semantics when changing serialization.
+- Prompts: centralized in [backend/prompts.py](../backend/prompts.py). Add templates here and call them from `server.py`.
 
-- Conventions & patterns to follow
-  - Parsers: keep I/O deterministic and local to `vector_store_gen.py`; add small helper functions (e.g., `extract_text_from_pdf`) in the same file.
-  - Prompts: the repo prefers two modes — a "hint" (scaffolded) mode and a "direct answer" mode. There is a `backend/prompts.py` entrypoint to centralize templates; wire new prompts there and invoke from `server.py`.
-  - Tree-sitter: adding languages requires building `build/my-languages.so` via the vendor workflow — avoid ad-hoc language additions.
+Conventions & project-specific patterns
+- Two response modes: "hint" (scaffolded) vs "direct answer" — prompts and handlers reflect this split.
+- Parsers should be deterministic and keep I/O local to [backend/vector_store_gen.py](../backend/vector_store_gen.py).
+- Avoid adding ad-hoc tree-sitter language binaries; follow the vendor build flow for `build/my-languages.so`.
+- CodeQuest intentionally avoids running user code; do not add execution or test-case leakage to the backend.
 
-- Integrations & dependencies
-  - Local Ollama (default): expected at localhost:11434. If implementing cloud fallbacks, add an adapter (suggested `backend/llm_adapters.py`) and update unit tests.
-  - Heavy deps in `requirements.txt`: `llama-index`, `ollama`, `PyMuPDF`, `python-pptx`, `tree_sitter`, `nbformat`. Use a virtualenv or pinned environment.
+Integrations to be aware of
+- Ollama local service (default): expected at `localhost:11434`. If adding cloud LLM fallbacks, isolate them behind an adapter (suggested [backend/llm_adapters.py](../backend/llm_adapters.py)).
+- Key Python deps are in `requirements.txt` (e.g., `llama-index`, `ollama`, `PyMuPDF`, `python-pptx`, `tree_sitter`, `nbformat`). Use a virtualenv.
 
-- Concrete examples
-  - Rebuild request body example: {"question":"List classes","rebuild":true,"indexing":{"parser":"code","chunk_size":512}}
-  - Query with model override example: {"question":"Summarize","model":"llama3-chatqa:latest","temperature":0.1}
+Where to look first (priority)
+- [backend/server.py](../backend/server.py) — API wiring, model constants, and query engine invocation.
+- [backend/vector_store_gen.py](../backend/vector_store_gen.py) — ingestion and parser implementations.
+- `vector_index_store/` — inspect persisted index artifacts after a rebuild.
+- [backend/chat_manager.py](../backend/chat_manager.py) — chat session lifecycle and file layout.
+- `frontend/src/services` and `frontend/src/components` — client calls and chat UI patterns.
 
-- Where to look first (priority)
-  - `backend/server.py` — API wiring, model constants, query engine calls.
-  - `backend/vector_store_gen.py` — ingestion, parsers, index creation.
-  - `vector_index_store/` — persisted index artifacts to inspect after a rebuild.
-  - `frontend/src/services/botService.js` and `frontend/src/components/ChatbotInterface.js` — show how the frontend calls the backend and shapes requests.
-  - `backend/chat_manager.py` — chat session management, file persistence location and helpers.
-  - `frontend/src/services/chatService.js` and `frontend/src/components/ChatbotInterface.js` — client-side chat history calls, sidebar UI and chat_id wiring.
-  - `docs/CHAT_HISTORY.md` — design and API details for the Chat History feature (useful when changing endpoints or data shapes).
+Examples (useful request payloads)
+- Rebuild index: {"question":"List classes","rebuild":true,"indexing":{"parser":"code","chunk_size":512}}
+- Query with model override: {"question":"Summarize","model":"llama3-chatqa:latest","temperature":0.1}
+
+If anything is unclear or you'd like this expanded into contributor onboarding steps, tell me which area to expand first (backend run/debug, index rebuilds, or CodeQuest flow).
 

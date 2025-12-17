@@ -7,10 +7,12 @@ Keep this list in sync when adding new top-level modules under ``backend/``.
 """
 
 __all__ = [
-	"server",
-	"vector_store_gen",
-	"planner",
+	"config",
+	"server_v2",
+	"admin",
+	"api",
 	"auth",
+	"modules",
 	"prompts",
-	"quiz",
+	"rag",
 ]
