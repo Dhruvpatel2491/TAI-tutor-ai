@@ -1,0 +1,738 @@
+================================================================================
+TAI TUTOR AI - PROMPT DOCUMENTATION
+================================================================================
+
+Purpose: This document provides a comprehensive overview of all prompts used in
+the TAI Tutor AI system, including their purpose, structure, guardrails, and
+usage guidelines. This documentation is intended for presentation, review, and
+system understanding.
+
+Last Updated: December 17, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW & PHILOSOPHY
+2. CHAT PROMPTS (chat_prompts.py)
+3. CODEQUEST PROMPTS (codequest_prompts.py)
+4. PLANNER PROMPTS (planner_prompts.py)
+5. QUIZ PROMPTS (quiz_prompts.py)
+6. GUARDRAILS & SAFETY MEASURES
+7. BEST PRACTICES & RECOMMENDATIONS
+
+================================================================================
+1. OVERVIEW & PHILOSOPHY
+================================================================================
+
+The TAI Tutor AI prompt system is designed with the following core principles:
+
+1. EDUCATIONAL INTEGRITY
+   - All prompts prioritize genuine learning over quick answers
+   - Encourage understanding, critical thinking, and problem-solving skills
+   - Support multiple learning styles and pedagogical approaches
+
+2. SAFETY & ETHICS
+   - Built-in guardrails prevent harmful, malicious, or inappropriate content
+   - Content validation ensures educational appropriateness
+   - Emphasis on ethical use of technology and coding practices
+
+3. ADAPTABILITY
+   - Prompts can be customized for different learning styles (formal, casual, technical)
+   - Support for different response types (direct, hinting, socratic)
+   - Adjustable response lengths and detail levels
+
+4. QUALITY ASSURANCE
+   - Clear, unambiguous instructions to the AI model
+   - Structured output formats for consistency
+   - Fallback mechanisms when primary systems are unavailable
+
+================================================================================
+2. CHAT PROMPTS (chat_prompts.py)
+================================================================================
+
+Purpose: Manages conversational tutoring interactions with students, providing
+         personalized educational support across various subjects and topics.
+
+--------------------------------------------------------------------------------
+2.1 BASE SYSTEM PROMPT
+--------------------------------------------------------------------------------
+
+Role: TAI Tutor AI - intelligent educational assistant
+
+Primary Goals:
+- Help students understand concepts deeply through clear, accurate explanations
+- Encourage learning, critical thinking, and intellectual curiosity
+- Provide accurate, helpful, and educational information
+- Adapt to the student's learning style and needs
+- Foster a positive, inclusive learning environment
+
+Code Explanation Approach:
+- Explain the logic and reasoning, not just the syntax
+- Point out common pitfalls and misconceptions
+- Suggest best practices and industry standards
+- Use clear, readable, well-commented code examples
+- Emphasize secure coding practices and security implications
+
+--------------------------------------------------------------------------------
+2.2 CONTENT GUARDRAILS (Chat)
+--------------------------------------------------------------------------------
+
+The system REFUSES to:
+- Provide solutions that facilitate academic dishonesty
+- Generate code for harmful, malicious, or unethical purposes
+- Assist with security bypasses or unauthorized access
+- Produce discriminatory, hateful, violent, or explicit content
+- Help with plagiarism or copyright infringement
+- Provide medical, legal, or financial advice outside educational context
+
+Educational Boundaries:
+- When students ask for direct solutions, guide toward understanding
+- Decline inappropriate requests politely with explanation
+- Focus on teaching concepts and problem-solving approaches
+- Encourage ethical coding practices and responsible technology use
+
+--------------------------------------------------------------------------------
+2.3 RESPONSE STYLES
+--------------------------------------------------------------------------------
+
+A. FORMAL STYLE
+- Professional academic tutor with computer science expertise
+- Uses formal language and proper academic terminology
+- Structured, methodical approach to explanations
+- Respectful tone that builds confidence
+- Cites best practices and established principles
+- Organized with clear introduction, main points, conclusion
+
+B. CASUAL STYLE
+- Friendly and supportive study buddy
+- Conversational, approachable language
+- Relatable examples and everyday analogies
+- Warm, encouraging tone with casual expressions
+- Makes complex topics accessible and less intimidating
+- Maintains educational rigor while keeping atmosphere positive
+
+C. TECHNICAL STYLE
+- Technical expert and mentor with deep domain knowledge
+- Precise technical terminology and industry-standard vocabulary
+- Detailed, technically accurate explanations with appropriate depth
+- References documentation, standards, and best practices
+- Explains trade-offs, edge cases, and implementation considerations
+- Assumes student wants deeper technical understanding
+
+--------------------------------------------------------------------------------
+2.4 RESPONSE TYPES
+--------------------------------------------------------------------------------
+
+A. DIRECT RESPONSE
+- Provides direct, clear, well-structured answers
+- Gives complete explanation to help understand concept
+- Comprehensive yet concise
+- Explains reasoning and context
+- Includes examples when helpful
+- Highlights key takeaways
+- Maintains educational value even with direct answers
+
+B. HINTING RESPONSE
+- Guides student to discover answer through strategic hints
+- Promotes active learning and deeper understanding
+- Does NOT give direct answer immediately
+- Acknowledges question and goal
+- Provides targeted hints without solving it
+- Asks guiding questions for next steps
+- Encourages trying before revealing more
+- Only provides additional hints if student genuinely stuck
+- Goal: Help learn to solve problems independently
+
+C. SOCRATIC RESPONSE
+- Uses Socratic method for discovery learning
+- Facilitates critical thinking through dialogue
+- Asks thought-provoking, open-ended questions
+- Gently challenges assumptions
+- Guides through logical reasoning by breaking down problems
+- Builds on student responses toward correct understanding
+- Celebrates discoveries and reinforces positive learning
+- Asks "what if" or "why do you think" questions
+- Develops problem-solving skills and metacognition
+
+--------------------------------------------------------------------------------
+2.5 RESPONSE LENGTHS
+--------------------------------------------------------------------------------
+
+SHORT: 2-3 sentences or short paragraph. Essential information only.
+
+MEDIUM: 2-3 paragraphs. Balanced detail with key explanations and 1-2 examples.
+
+LONG: Comprehensive, detailed response. Thorough explanations, multiple examples,
+      related concepts. Uses formatting (bullets, lists) for clarity.
+
+--------------------------------------------------------------------------------
+2.6 CONVERSATION HISTORY
+--------------------------------------------------------------------------------
+
+- Maintains context across multi-turn conversations
+- Formats recent messages (up to 10) for context
+- Labels messages as "Student" or "Tutor"
+- Truncates very long messages to 500 characters in context
+- Enables coherent, contextual responses
+
+--------------------------------------------------------------------------------
+2.7 CONTENT SAFETY CHECKING
+--------------------------------------------------------------------------------
+
+Automated Pattern Detection:
+- Checks for harmful patterns (hack, exploit, malware, etc.)
+- Checks for academic dishonesty patterns
+- Allows educational exceptions (learning about security)
+- Returns safety status and warning message if needed
+
+Behavior:
+- Safe content: Proceed normally
+- Educational context detected: Allow with reminder
+- Harmful intent detected: Refuse with polite redirection
+
+================================================================================
+3. CODEQUEST PROMPTS (codequest_prompts.py)
+================================================================================
+
+Purpose: Generates and evaluates programming challenges for hands-on coding
+         practice in the CodeQuest learning platform.
+
+--------------------------------------------------------------------------------
+3.1 SECURITY AND SAFETY REQUIREMENTS (CodeQuest)
+--------------------------------------------------------------------------------
+
+Generate ONLY:
+- Educational, safe, and appropriate code challenges
+- Constructive programming concepts (algorithms, data structures, design)
+- Secure coding practices in solutions
+
+Do NOT Create:
+- Malware, exploits, or unauthorized access challenges
+- Code that damages systems or violates privacy
+- Harassment tools or harmful functionality
+- Anything unethical or malicious
+
+Emphasis:
+- Focus on legitimate educational value
+- Include input validation and error handling
+- Demonstrate best practices in reference solutions
+
+--------------------------------------------------------------------------------
+3.2 CHALLENGE GENERATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Expert educational content creator for CodeQuest platform
+
+Quality Standards:
+- Each challenge teaches a specific, clear concept
+- Clear, unambiguous problem statements
+- Helpful starter code with TODO markers
+- Solutions demonstrate best practices with comments
+- Difficulty matches specified level appropriately
+- Challenges are achievable and build confidence
+
+Output Format:
+- Valid JSON only (no markdown fences or extra text)
+- Required fields: id, track, language, title, prompt, starter_code
+- Optional field: solution
+
+Constraints:
+- Unique, lowercase, URL-safe IDs
+- Minimal but syntactically valid starter code
+- Correct reference solution as code (no markdown)
+
+--------------------------------------------------------------------------------
+3.3 SOLUTION GENERATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Expert programmer creating reference solutions
+
+Solution Quality Requirements:
+- Clean, readable, idiomatic code
+- Follows best practices for specified language
+- Appropriate error handling and edge case management
+- Meaningful variable and function names
+- Simple and educational (not overly clever)
+- Correct and handles all specified requirements
+
+Output Format:
+- Solution code only (no markdown, explanations, or extra text)
+
+--------------------------------------------------------------------------------
+3.4 EVALUATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Educational code reviewer and automated grader
+
+Evaluation Criteria:
+- Correctness: Satisfies all prompt requirements
+- Functionality: Works for typical inputs and edge cases
+- Code Quality: Readable and follows reasonable practices
+- Give benefit of doubt for minor style differences
+- Focus on core concept understanding
+
+Feedback Guidelines:
+- Be encouraging and constructive
+- Point out what they did well
+- Suggest specific improvements for failures
+- Keep feedback brief and actionable
+
+Output Format:
+- Valid JSON with: passed (bool), reason (string), feedback (string)
+
+--------------------------------------------------------------------------------
+3.5 DEFAULT CHALLENGE TEMPLATES
+--------------------------------------------------------------------------------
+
+The system includes 4 default challenges:
+1. Python: Add Two Numbers (basic function)
+2. Python: Reverse a String (string manipulation)
+3. JavaScript: FizzBuzz (loops and conditionals)
+4. JavaScript: Palindrome Check (string operations)
+
+These serve as examples and fallback content.
+
+================================================================================
+4. PLANNER PROMPTS (planner_prompts.py)
+================================================================================
+
+Purpose: Generates personalized learning plans with structured schedules,
+         objectives, and resources based on student requirements.
+
+--------------------------------------------------------------------------------
+4.1 LEARNING PLAN QUALITY STANDARDS
+--------------------------------------------------------------------------------
+
+- Create realistic, achievable plans based on stated timeframe
+- Use evidence-based learning principles:
+  * Spaced repetition
+  * Active recall
+  * Deliberate practice
+- Ensure all recommendations appropriate for education
+- Do NOT create plans for harmful or inappropriate topics
+- Focus on legitimate educational and professional development
+- Include appropriate time buffers and breaks
+- Set achievable milestones that build confidence
+
+--------------------------------------------------------------------------------
+4.2 CONTENT BOUNDARIES (Planner)
+--------------------------------------------------------------------------------
+
+- Plans support legitimate learning goals only
+- Avoid plans that facilitate academic dishonesty
+- Do not include activities violating ethical standards
+- Redirect inappropriate requests to legitimate alternatives
+
+--------------------------------------------------------------------------------
+4.3 PLAN GENERATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Expert educational consultant and instructional designer
+
+Task: Create comprehensive, actionable, pedagogically sound study plans
+      tailored to each learner's requirements and goals
+
+Required Plan Sections:
+1. Title (1 line)
+2. Learning Objectives (3-5 concise, measurable objectives)
+3. Suggested Schedule (total duration; block-by-block or day-by-day with times)
+4. Exercises (3 concrete practice activities with step-by-step instructions)
+5. Assessment & Success Criteria (rubric or pass/fail checks)
+6. Quick Self-Check Questions (3 questions, mark one as 'Stretch')
+7. Recommended Resources (2-4 named resources or search terms)
+8. Tips for Study (2-4 tactical tips)
+9. Optional Extensions & Differentiation (recommendations for Beginner and Advanced)
+
+Formatting and Content Rules:
+1. Return ONLY plan text with clear headings (no JSON, no commentary)
+2. TIMEFRAME ADAPTATION: Match stated constraints (e.g., '1 month', '5 hours/week')
+   Include buffer time for review and delays
+3. REALISTIC TIME ESTIMATES: Consider actual human learning pace
+   Default to ~60 minutes if no timeframe provided
+4. CONCRETE CONTENT: Replace ALL placeholders with specific values
+   No '[insert ...]', '[TBD]', or '[example]' markers
+5. BALANCED DETAIL: 800-1000 words optimal
+   Include actionable details, examples, deliverables, success checks
+6. MOTIVATIONAL TONE: Frame positively, acknowledge challenges, emphasize achievability
+
+Adaptation Strategy:
+- Prioritize clarity, structure, actionable steps
+- If requirement too broad, narrow to focused scope with specific starting point
+- Explain focus choice in Title or Learning Objectives
+- Redirect inappropriate requests to related legitimate topics
+
+--------------------------------------------------------------------------------
+4.4 FALLBACK PLAN GENERATION
+--------------------------------------------------------------------------------
+
+When LLM is unavailable, system generates deterministic fallback plans with:
+- Structured sections based on requirement keywords
+- Default 60-minute schedule broken into logical blocks
+- Generic but relevant exercises
+- Standard self-check questions
+- Basic resource recommendations
+- Study tips applicable to most topics
+
+This ensures the system remains functional even without AI model access.
+
+================================================================================
+5. QUIZ PROMPTS (quiz_prompts.py)
+================================================================================
+
+Purpose: Generates educational quizzes and evaluates student answers to assess
+         understanding and provide feedback.
+
+--------------------------------------------------------------------------------
+5.1 QUIZ QUALITY STANDARDS
+--------------------------------------------------------------------------------
+
+- Generate educationally valid questions testing genuine understanding
+- Ensure questions are clear, unambiguous, at appropriate difficulty
+- Include plausible distractors in multiple-choice (not obviously wrong)
+- Provide accurate, helpful explanations that teach the concept
+- Avoid trick questions or unnecessarily confusing wording
+- Test conceptual understanding, not just memorization
+- Ensure cultural sensitivity and inclusive language
+
+--------------------------------------------------------------------------------
+5.2 CONTENT SAFETY (Quiz)
+--------------------------------------------------------------------------------
+
+- Generate questions only on legitimate educational topics
+- Do NOT create quiz content for harmful or inappropriate subjects
+- Avoid questions facilitating academic dishonesty if shared
+- Ensure all content is age-appropriate and professional
+- Maintain academic integrity in question design
+
+--------------------------------------------------------------------------------
+5.3 QUIZ GENERATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Expert educational assessment designer
+
+Expertise: Creating fair, valid, pedagogically sound quiz questions that help
+           students learn and instructors assess understanding
+
+Requirements:
+- Topic, number of questions, question types, difficulty level
+- Optional: learning plan context for targeted questions
+
+Specific Instructions:
+- Generate exact number of well-crafted questions
+- Test different aspects of topic comprehensively
+- Questions progress logically, cover key concepts
+- Multiple-choice: plausible distractors representing common misconceptions
+- True/False: avoid absolutes (always, never) unless technically accurate
+- Short-answer: expect understanding demonstration, not memorization
+- Clear explanations helping students learn from mistakes
+
+Question Object Fields:
+- question_id: unique identifier (e.g., "q1", "q2")
+- question_text: the question
+- question_type: "multiple_choice", "true_false", or "short_answer"
+- options: array of 4 options with letter prefixes (or ["True", "False"], or null)
+- correct_answer: the correct answer (with letter prefix for MC)
+- explanation: brief explanation of correct answer
+- difficulty: specified difficulty level
+- topic: specified topic
+
+Output Format:
+- Valid JSON array only (no markdown, no commentary)
+
+--------------------------------------------------------------------------------
+5.4 QUIZ EVALUATION PROMPT
+--------------------------------------------------------------------------------
+
+Role: Fair and encouraging educational assessment evaluator
+
+Purpose: Determine if student's answer demonstrates sufficient understanding
+
+Evaluation Criteria:
+- For short answers: accept semantically equivalent answers
+- Allow reasonable paraphrasing and minor variations
+- Focus on conceptual understanding, not exact wording
+- Be lenient with spelling/grammar differences
+- Consider if student demonstrates core concept understanding
+- Mark correct if substantially correct, even if minor details incomplete
+
+Feedback Guidelines:
+- Be encouraging and constructive
+- If correct: acknowledge what they got right
+- If incorrect: point out what's missing/misunderstood, provide learning hint
+- Keep feedback concise (1-2 sentences)
+
+Output Format:
+- Valid JSON: is_correct (boolean), feedback (string)
+
+--------------------------------------------------------------------------------
+5.5 FALLBACK QUESTION TEMPLATES
+--------------------------------------------------------------------------------
+
+When LLM unavailable, system uses 5 fallback question templates:
+1. Multiple-choice: Primary concept of topic
+2. True/False: Practice and understanding importance
+3. Short-answer: Name key aspect
+4. Multiple-choice: Best learning approach
+5. True/False: Learning in isolation (false)
+
+Templates use topic substitution to generate relevant questions.
+
+================================================================================
+6. GUARDRAILS & SAFETY MEASURES
+================================================================================
+
+The TAI Tutor AI system implements multiple layers of safety guardrails:
+
+--------------------------------------------------------------------------------
+6.1 CONTENT FILTERING (Chat)
+--------------------------------------------------------------------------------
+
+Harmful Pattern Detection:
+- Regex patterns detect potentially harmful keywords
+- Patterns include: hack, exploit, malware, attack, password crack, etc.
+- Also detects academic dishonesty patterns
+
+Educational Context Detection:
+- Allows security topics when framed educationally
+- Patterns include: "learn about", "understand", "study", "security defense"
+
+Response Strategy:
+- Block: Clear harmful intent → refuse with polite explanation
+- Allow with reminder: Educational context → proceed with ethics note
+- Pass through: No concerning patterns detected
+
+--------------------------------------------------------------------------------
+6.2 PROMPT-LEVEL GUARDRAILS
+--------------------------------------------------------------------------------
+
+All prompt systems include explicit guardrails:
+
+Chat System:
+- Refuse academic dishonesty, harmful code, security bypasses
+- Refuse discriminatory, hateful, violent, explicit content
+- No medical, legal, financial advice outside education
+- Guide toward understanding over direct answers
+
+CodeQuest System:
+- Only educational, safe challenges
+- No malware, exploits, harmful functionality
+- Emphasize secure coding practices
+- Focus on legitimate programming concepts
+
+Planner System:
+- Only legitimate learning goals
+- No plans for harmful/unethical activities
+- Realistic timeframes with buffers
+- Evidence-based learning principles
+
+Quiz System:
+- Only legitimate educational topics
+- No inappropriate or harmful content
+- Academic integrity maintained
+- Fair, valid assessment practices
+
+--------------------------------------------------------------------------------
+6.3 INPUT VALIDATION
+--------------------------------------------------------------------------------
+
+- Check request appropriateness before processing
+- Validate output formats (JSON, text structure)
+- Sanitize user inputs to prevent injection attacks
+- Validate timeframes and parameters for reasonableness
+
+--------------------------------------------------------------------------------
+6.4 OUTPUT QUALITY CONTROL
+--------------------------------------------------------------------------------
+
+- Enforce structured output formats
+- Validate completeness of generated content
+- Ensure educational value in all responses
+- Fallback mechanisms for system failures
+
+================================================================================
+7. BEST PRACTICES & RECOMMENDATIONS
+================================================================================
+
+--------------------------------------------------------------------------------
+7.1 FOR PROMPT DEVELOPERS
+--------------------------------------------------------------------------------
+
+1. CLARITY IS PARAMOUNT
+   - Write explicit, unambiguous instructions
+   - Specify exact output formats
+   - Define all constraints clearly
+
+2. INCLUDE GUARDRAILS
+   - Add safety checks for every prompt
+   - Consider misuse scenarios
+   - Implement content filtering
+
+3. TEST EDGE CASES
+   - Test with unusual inputs
+   - Verify guardrails work correctly
+   - Check fallback behaviors
+
+4. PROVIDE EXAMPLES
+   - Include example outputs in prompts
+   - Show desired formatting clearly
+   - Demonstrate quality standards
+
+5. ITERATE AND REFINE
+   - Monitor actual usage patterns
+   - Collect feedback from users
+   - Refine prompts based on real-world performance
+
+--------------------------------------------------------------------------------
+7.2 FOR SYSTEM INTEGRATORS
+--------------------------------------------------------------------------------
+
+1. VALIDATE LLM OUTPUTS
+   - Parse and validate all AI responses
+   - Check for required fields
+   - Handle malformed outputs gracefully
+
+2. IMPLEMENT FALLBACKS
+   - Have backup responses when AI unavailable
+   - Provide degraded but functional service
+   - Log failures for investigation
+
+3. MONITOR USAGE
+   - Track prompt performance metrics
+   - Monitor for inappropriate requests
+   - Analyze response quality
+
+4. USER FEEDBACK LOOPS
+   - Collect user satisfaction data
+   - Identify common issues
+   - Use feedback to improve prompts
+
+--------------------------------------------------------------------------------
+7.3 FOR EDUCATORS AND ADMINISTRATORS
+--------------------------------------------------------------------------------
+
+1. UNDERSTAND CAPABILITIES
+   - Know what the system can and cannot do
+   - Understand guardrails and limitations
+   - Set appropriate expectations with students
+
+2. MONITOR EDUCATIONAL OUTCOMES
+   - Track student learning effectiveness
+   - Compare different response modes
+   - Adjust settings based on results
+
+3. MAINTAIN ACADEMIC INTEGRITY
+   - Use system as supplement, not replacement
+   - Encourage proper citation and attribution
+   - Monitor for misuse
+
+4. PROVIDE GUIDANCE
+   - Train students on effective AI tutoring use
+   - Teach critical evaluation of AI responses
+   - Promote ethical technology use
+
+--------------------------------------------------------------------------------
+7.4 FOR STUDENTS
+--------------------------------------------------------------------------------
+
+1. ENGAGE ACTIVELY
+   - Try problems before asking for help
+   - Ask clarifying questions
+   - Reflect on explanations received
+
+2. USE APPROPRIATE MODES
+   - Try "hinting" mode for homework
+   - Use "socratic" mode to deepen understanding
+   - Save "direct" mode for quick clarifications
+
+3. VERIFY UNDERSTANDING
+   - Don't just copy answers
+   - Explain concepts in your own words
+   - Test yourself on related problems
+
+4. ETHICAL USE
+   - Use for learning, not cheating
+   - Don't submit AI-generated work as your own
+   - Cite AI assistance when required
+
+================================================================================
+APPENDIX: TECHNICAL DETAILS
+================================================================================
+
+--------------------------------------------------------------------------------
+A. FILE STRUCTURE
+--------------------------------------------------------------------------------
+
+backend/prompts/
+├── __init__.py                 # Module initialization
+├── chat_prompts.py             # Conversational tutoring prompts
+├── codequest_prompts.py        # Coding challenge prompts
+├── planner_prompts.py          # Learning plan generation prompts
+└── quiz_prompts.py             # Quiz generation and evaluation prompts
+
+--------------------------------------------------------------------------------
+B. KEY CLASSES AND FUNCTIONS
+--------------------------------------------------------------------------------
+
+chat_prompts.py:
+- ConversationMessage (dataclass): Represents single conversation message
+- ChatPrompter (class): Main prompt management class
+  * build_system_prompt(): Constructs system prompt with preferences
+  * build_full_prompt(): Complete prompt with history and question
+  * check_content_safety(): Validates input content safety
+  * add_message(), clear_history(): History management
+
+codequest_prompts.py:
+- build_challenge_set_prompt(): Creates challenge generation prompt
+- build_solution_prompt(): Creates reference solution prompt
+- build_evaluation_prompt(): Creates code evaluation prompt
+- get_default_challenges(): Returns fallback challenge templates
+
+planner_prompts.py:
+- build_plan_prompt(): Creates learning plan generation prompt
+- generate_fallback_plan(): Creates deterministic fallback plan
+
+quiz_prompts.py:
+- build_quiz_generation_prompt(): Creates quiz generation prompt
+- build_quiz_evaluation_prompt(): Creates answer evaluation prompt
+- get_fallback_questions(): Returns fallback quiz questions
+
+--------------------------------------------------------------------------------
+C. INTEGRATION POINTS
+--------------------------------------------------------------------------------
+
+The prompt modules are used by:
+- backend/modules/chat.py: Chat conversation management
+- backend/modules/codequest.py: CodeQuest challenge system
+- backend/modules/planner.py: Learning plan generation
+- backend/modules/quiz.py: Quiz generation and evaluation
+
+API endpoints call these modules through:
+- backend/api/endpoints_chat.py
+- backend/api/endpoints_codequest.py
+- backend/api/endpoints_planner.py
+- backend/api/endpoints_quiz.py
+
+--------------------------------------------------------------------------------
+D. CONFIGURATION
+--------------------------------------------------------------------------------
+
+Prompt behavior can be customized through:
+- User preferences (style, response_type, length)
+- API request parameters
+- Backend configuration (config.py)
+- Environment variables (for model selection)
+
+Default LLM: Ollama local models (configurable)
+Default Embedding: Ollama embeddings (configurable)
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+
+This documentation is maintained as part of the TAI Tutor AI project.
+For updates or questions, refer to the project repository and team contacts.
+
+Repository: TAI-tutor-ai
+Documentation Last Updated: December 17, 2025
+Version: 2.0 (Post-Refactoring with Guardrails)

@@ -2,10 +2,25 @@
 CodeQuest-related prompts for TAI Tutor AI.
 
 This module contains prompt templates for CodeQuest challenge generation and evaluation.
+All prompts include guardrails to ensure educational integrity and prevent harmful code generation.
 """
 
 import json
 from typing import Any, Dict, List, Optional
+
+
+# Content Safety Guardrails for CodeQuest
+CODE_SAFETY_GUIDELINES = """
+SECURITY AND SAFETY REQUIREMENTS:
+- Generate ONLY educational, safe, and appropriate code challenges
+- Do NOT create challenges involving: malware, exploits, unauthorized access, data theft, 
+  harassment tools, or any harmful/malicious functionality
+- Do NOT include code that could damage systems, violate privacy, or be used unethically
+- Focus on constructive programming concepts: algorithms, data structures, problem-solving, 
+  software design, and best practices
+- If a request seems inappropriate, generate a related educational challenge instead
+- Emphasize secure coding practices in solutions (input validation, error handling, etc.)
+"""
 
 
 def build_challenge_set_prompt(
@@ -35,8 +50,18 @@ def build_challenge_set_prompt(
         Dictionary with system and user prompts
     """
     system = (
-        "You generate programming challenges for an educational product called CodeQuest. "
-        "Return ONLY valid JSON. Do not include markdown fences."
+        "You are an expert educational content creator for CodeQuest, a programming learning platform. "
+        "Your role is to generate high-quality, pedagogically sound coding challenges that help students "
+        "learn programming concepts through hands-on practice.\n\n"
+        f"{CODE_SAFETY_GUIDELINES}\n\n"
+        "CHALLENGE QUALITY STANDARDS:\n"
+        "- Each challenge should teach a specific, clear concept\n"
+        "- Provide clear, unambiguous problem statements\n"
+        "- Include helpful starter code with TODO markers\n"
+        "- Solutions should demonstrate best practices and be well-commented\n"
+        "- Difficulty should match the specified level appropriately\n"
+        "- Challenges should be achievable and build confidence\n\n"
+        "OUTPUT FORMAT: Return ONLY valid JSON. Do not include markdown fences, explanations, or extra text."
     )
     
     user = {
@@ -82,8 +107,16 @@ def build_solution_prompt(language: str, prompt: str, starter_code: str = "") ->
         Dictionary with system and user prompts
     """
     system = (
-        "You write correct reference solutions for programming challenges. "
-        "Return ONLY the solution code. Do not include markdown fences, explanations, or extra text."
+        "You are an expert programmer creating reference solutions for educational coding challenges. "
+        f"{CODE_SAFETY_GUIDELINES}\n\n"
+        "SOLUTION QUALITY REQUIREMENTS:\n"
+        "- Write clean, readable, and idiomatic code\n"
+        "- Follow best practices for the specified language\n"
+        "- Include appropriate error handling and edge case management\n"
+        "- Use meaningful variable and function names\n"
+        "- Keep code simple and educational (avoid overly clever solutions)\n"
+        "- Ensure the solution is correct and handles the specified requirements\n\n"
+        "OUTPUT FORMAT: Return ONLY the solution code. Do not include markdown fences, explanations, or extra text."
     )
     
     user = (
@@ -115,8 +148,21 @@ def build_evaluation_prompt(
         Dictionary with system and user prompts
     """
     system = (
-        "You are an automated grader. Return only JSON with keys: "
-        "passed (bool), reason (string, short), feedback (string, optional)."
+        "You are an educational code reviewer and automated grader. Your role is to evaluate student "
+        "code submissions fairly and provide constructive feedback.\n\n"
+        "EVALUATION CRITERIA:\n"
+        "- Correctness: Does the code satisfy all requirements in the prompt?\n"
+        "- Functionality: Would the code work for typical inputs and edge cases?\n"
+        "- Code Quality: Is the code readable and following reasonable practices?\n"
+        "- Give students the benefit of the doubt for minor style differences\n"
+        "- Focus on whether they demonstrate understanding of the core concept\n\n"
+        "FEEDBACK GUIDELINES:\n"
+        "- Be encouraging and constructive\n"
+        "- Point out what they did well\n"
+        "- Suggest specific improvements for failures\n"
+        "- Keep feedback brief and actionable\n\n"
+        "OUTPUT FORMAT: Return only valid JSON with keys: "
+        "passed (bool), reason (string, brief explanation), feedback (string, constructive guidance)."
     )
     
     user = (

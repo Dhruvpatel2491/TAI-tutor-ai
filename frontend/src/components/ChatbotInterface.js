@@ -116,7 +116,7 @@ const ChatbotInterface = () => {
   // State - Response Configuration
   const [responseStyle, setResponseStyle] = useState('formal');
   const [responseType, setResponseType] = useState('direct');
-  const [responseLength, setResponseLength] = useState('medium');
+  const [responseLength, setResponseLength] = useState('short');
 
   // State - Backend Connection
   const [backendURL, setBackendURL] = useState(DEFAULT_BACKEND_URL);

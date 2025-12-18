@@ -2,9 +2,30 @@
 Quiz-related prompts for TAI Tutor AI.
 
 This module contains prompt templates for quiz generation and evaluation.
+All prompts include guardrails for educational quality and appropriate content.
 """
 
 from typing import List, Optional
+
+
+# Quiz Quality and Safety Guidelines
+QUIZ_GUIDELINES = """
+QUIZ QUALITY STANDARDS:
+- Generate educationally valid questions that test genuine understanding
+- Ensure questions are clear, unambiguous, and at the appropriate difficulty level
+- Include plausible distractors in multiple-choice questions (not obviously wrong)
+- Provide accurate, helpful explanations that teach the concept
+- Avoid trick questions or unnecessarily confusing wording
+- Test conceptual understanding, not just memorization
+- Ensure cultural sensitivity and inclusive language
+
+CONTENT SAFETY:
+- Generate questions only on legitimate educational topics
+- Do NOT create quiz content for harmful, inappropriate, or unethical subjects
+- Avoid questions that could facilitate academic dishonesty if shared
+- Ensure all content is age-appropriate and professional
+- Maintain academic integrity in question design
+"""
 
 
 def build_quiz_generation_prompt(
@@ -42,15 +63,27 @@ Based on the following learning plan, generate questions that test understanding
 --- LEARNING PLAN END ---
 """
     
-    prompt = f"""You are an expert educational quiz generator. Generate a quiz based on the following requirements.
+    prompt = f"""You are an expert educational assessment designer with expertise in creating fair, valid, 
+and pedagogically sound quiz questions. Your quizzes help students learn and instructors assess understanding effectively.
 
+{QUIZ_GUIDELINES}
+
+REQUIREMENTS FOR THIS QUIZ:
 Topic: {topic}
 Number of questions: {num_questions}
 Question types to include: {types_desc}
 Difficulty level: {difficulty}
 {plan_context}
 
-Generate exactly {num_questions} questions in valid JSON format. Return ONLY a JSON array with no additional text or markdown.
+SPECIFIC INSTRUCTIONS:
+- Generate exactly {num_questions} well-crafted questions that test different aspects of {topic}
+- Ensure questions progress logically and cover key concepts comprehensively
+- For multiple-choice questions: create plausible distractors that represent common misconceptions
+- For true/false questions: avoid absolute statements (always, never) unless technically accurate
+- For short-answer questions: expect answers that demonstrate understanding, not just memorization
+- Write clear explanations that would help a student learn from their mistakes
+
+OUTPUT FORMAT: Return ONLY a valid JSON array with no additional text, markdown fences, or commentary.
 
 Each question object must have these fields:
 - "question_id": unique string identifier (e.g., "q1", "q2")
@@ -107,21 +140,34 @@ def build_quiz_evaluation_prompt(
     Returns:
         Formatted prompt for answer evaluation
     """
-    return f"""You are an educational assessment evaluator. Evaluate whether the student's answer is correct.
+    return f"""You are a fair and encouraging educational assessment evaluator. Your role is to determine if the 
+student's answer demonstrates sufficient understanding of the concept being tested.
 
+EVALUATION CONTEXT:
 Question: {question_text}
-Correct Answer: {correct_answer}
+Expected Answer: {correct_answer}
 Student's Answer: {user_answer}
 Question Type: {question_type}
 
-Evaluate if the student's answer is semantically correct (for short answers, allow paraphrasing and minor variations).
+EVALUATION CRITERIA:
+- For short answers: Accept semantically equivalent answers, reasonable paraphrasing, and minor variations
+- Focus on conceptual understanding, not exact wording
+- Be lenient with spelling variations or minor grammatical differences
+- Consider if the student demonstrates understanding of the core concept
+- Mark as correct if the answer is substantially correct, even if incomplete in minor details
 
-Return ONLY a JSON object with these fields:
-- "is_correct": boolean (true if answer is acceptable, false otherwise)
-- "feedback": brief feedback for the student
+FEEDBACK GUIDELINES:
+- Be encouraging and constructive
+- If correct: Acknowledge what they got right
+- If incorrect: Point out what was missing or misunderstood, and provide a brief learning hint
+- Keep feedback concise (1-2 sentences)
+
+OUTPUT FORMAT: Return ONLY a valid JSON object with these exact fields:
+- "is_correct": boolean (true if answer demonstrates sufficient understanding, false otherwise)
+- "feedback": string (brief, constructive feedback)
 
 Example:
-{{"is_correct": true, "feedback": "Correct! Your answer captures the key concept."}}
+{{"is_correct": true, "feedback": "Correct! Your answer captures the key concept effectively."}}
 """
 
 
