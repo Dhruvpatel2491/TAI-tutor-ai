@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/ChatbotInterface.css';
 import FormattedMessage from './FormattedMessage';
+import ConfirmModal from './ConfirmModal';
 import { formatBotResponse } from '../utils/messageFormatter';
 import { DEFAULT_BACKEND_URL } from '../config';
 import { apiGet, apiPost } from '../services/http';
@@ -137,8 +138,45 @@ const ChatbotInterface = () => {
   const [loadingChats, setLoadingChats] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
+  // State - Confirm Modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    variant: "warning",
+    confirmText: "Confirm",
+    cancelText: "Cancel"
+  });
+
   // Refs
   const messagesEndRef = useRef(null);
+
+  // Helper to show confirmation modal
+  const showConfirmModal = useCallback((title, message, onConfirm, variant = "warning", confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  }, []);
+
+  // Helper to close confirmation modal
+  const closeConfirmModal = useCallback(() => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      variant: "warning",
+      confirmText: "Confirm",
+      cancelText: "Cancel"
+    });
+  }, []);
 
   // Build conversation history for context-aware responses
   const buildConversationHistory = useCallback(() => {
@@ -240,24 +278,29 @@ const ChatbotInterface = () => {
       event.stopPropagation();
     }
     
-    if (!window.confirm('Are you sure you want to delete this conversation?')) {
-      return;
-    }
-    
-    try {
-      await chatService.deleteChat(chatId, { backendURL });
-      
-      // If we deleted the current chat, start a new one
-      if (chatId === currentChatId) {
-        handleNewChat();
-      }
-      
-      // Refresh the chat list
-      loadChatList();
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-    }
-  }, [backendURL, currentChatId, handleNewChat, loadChatList]);
+    showConfirmModal(
+      "Delete Conversation",
+      "Are you sure you want to delete this conversation? This action cannot be undone.",
+      async () => {
+        try {
+          await chatService.deleteChat(chatId, { backendURL });
+          
+          // If we deleted the current chat, start a new one
+          if (chatId === currentChatId) {
+            handleNewChat();
+          }
+          
+          // Refresh the chat list
+          loadChatList();
+        } catch (error) {
+          console.error('Failed to delete chat:', error);
+        }
+      },
+      "danger",
+      "Delete",
+      "Cancel"
+    );
+  }, [backendURL, currentChatId, handleNewChat, loadChatList, showConfirmModal]);
 
   // Archive/unarchive a chat conversation
   const handleArchiveChat = useCallback(async (chatId, archive, event) => {
@@ -852,6 +895,18 @@ const ChatbotInterface = () => {
           </div>
         </div>
       </aside>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
  
     </div>
   );

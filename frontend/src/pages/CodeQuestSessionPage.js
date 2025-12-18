@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import codeQuestService from '../services/codeQuestService';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/Quiz.css';
 import '../styles/CodeQuestSession.css';
 
@@ -87,6 +88,17 @@ export default function CodeQuestSessionPage() {
   const [code, setCode] = useState('');
 
   const [submitResult, setSubmitResult] = useState(null);
+
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    variant: "warning",
+    confirmText: "Confirm",
+    cancelText: "Cancel"
+  });
   const [finalStats, setFinalStats] = useState(null);
 
   const [solutions, setSolutions] = useState({});
@@ -104,6 +116,32 @@ export default function CodeQuestSessionPage() {
   });
 
   const draftSaveTimerRef = useRef(null);
+
+  // Helper to show confirmation modal
+  const showConfirmModal = (title, message, onConfirm, variant = "warning", confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  };
+
+  // Helper to close confirmation modal
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      variant: "warning",
+      confirmText: "Confirm",
+      cancelText: "Cancel"
+    });
+  };
 
   const ids = session?.challenge_ids || [];
   const results = useMemo(() => (session?.results || {}), [session?.results]);
@@ -260,14 +298,21 @@ export default function CodeQuestSessionPage() {
   };
 
   const onExit = async () => {
-    const ok = window.confirm('Exit this CodeQuest session?');
-    if (!ok) return;
-    try {
-      await codeQuestService.exitSession(sessionId);
-    } catch (e) {
-      // non-fatal
-    }
-    navigate('/codequest');
+    showConfirmModal(
+      "Exit CodeQuest Session",
+      "Are you sure you want to exit this CodeQuest session? Your progress will be saved.",
+      async () => {
+        try {
+          await codeQuestService.exitSession(sessionId);
+        } catch (e) {
+          // non-fatal
+        }
+        navigate('/codequest');
+      },
+      "warning",
+      "Exit",
+      "Stay"
+    );
   };
 
   if (loading) {
@@ -475,6 +520,18 @@ export default function CodeQuestSessionPage() {
           </CollapsiblePanel>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

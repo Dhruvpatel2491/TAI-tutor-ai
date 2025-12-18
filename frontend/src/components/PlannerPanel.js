@@ -3,6 +3,8 @@ import { DEFAULT_BACKEND_URL } from "../config";
 import { apiGet, apiPost } from "../services/http";
 import { authService } from "../services/authService";
 import { renderPlanMarkdown } from "../utils/planFormatter";
+import ConfirmModal from "./ConfirmModal";
+import PromptModal from "./PromptModal";
 import "../styles/PlannerPage.css";
 
 function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
@@ -13,6 +15,30 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [filterText, setFilterText] = useState("");
   const [requirements, setRequirements] = useState("");
   const [msg, setMsg] = useState("");
+
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    variant: "warning",
+    confirmText: "Confirm",
+    cancelText: "Cancel"
+  });
+
+  // Prompt modal state
+  const [promptModal, setPromptModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    placeholder: "",
+    defaultValue: "",
+    onConfirm: null,
+    variant: "primary",
+    confirmText: "OK",
+    cancelText: "Cancel"
+  });
 
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [planText, setPlanText] = useState("");
@@ -94,6 +120,62 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Helper to show confirmation modal
+  const showConfirmModal = (title, message, onConfirm, variant = "warning", confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  };
+
+  // Helper to close confirmation modal
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      variant: "warning",
+      confirmText: "Confirm",
+      cancelText: "Cancel"
+    });
+  };
+
+  // Helper to show prompt modal
+  const showPromptModal = (title, message, onConfirm, placeholder = "", defaultValue = "", variant = "primary", confirmText = "OK", cancelText = "Cancel") => {
+    setPromptModal({
+      isOpen: true,
+      title,
+      message,
+      placeholder,
+      defaultValue,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  };
+
+  // Helper to close prompt modal
+  const closePromptModal = () => {
+    setPromptModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      placeholder: "",
+      defaultValue: "",
+      onConfirm: null,
+      variant: "primary",
+      confirmText: "OK",
+      cancelText: "Cancel"
+    });
+  };
 
   const handleInvalidToken = () => {
     try {
@@ -258,7 +340,22 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
       setMsg("No saved plan path provided for deletion");
       return;
     }
-    if (!window.confirm("Delete this plan? This action cannot be undone.")) return;
+    
+    // Show custom confirmation modal instead of window.confirm
+    showConfirmModal(
+      "Delete Plan",
+      "Delete this plan? This action cannot be undone.",
+      async () => {
+        await performDeletePlan(path);
+      },
+      "danger",
+      "Delete",
+      "Cancel"
+    );
+  };
+
+  // Actual delete operation (separated for modal callback)
+  const performDeletePlan = async (path) => {
     setMsg("Deleting plan…");
     try {
       const headers = { "Content-Type": "application/json" };
@@ -297,44 +394,71 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     }
     // If editing an existing saved plan, prompt for confirmation to overwrite
     if (selectedPlan && selectedPlan.path) {
-      const confirmOverwrite = window.confirm(`Overwrite existing plan '${selectedPlan.name}'? This action cannot be undone.`);
-      if (!confirmOverwrite) return;
-      setMsg("Saving changes…");
-      try {
-        const headers = { "Content-Type": "application/json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const body = { path: selectedPlan.path, plan_text: finalText };
-        const res = await apiPost(`${backendURL}/saved_plans/update`, body);
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          setMsg("Changes saved successfully");
-          setSelectedPlan((prev) => ({ ...(prev || {}), text: finalText }));
-          setGeneratedPlan(finalText);
-          setHasUnsavedGeneratedPlan(false);
-          setHasUnsavedChanges(false);
-          try {
-            fetchPlans();
-          } catch (e) {}
-          setIsEditingSaved(false);
-          setView("preview");
-        } else if (res.status === 401) {
-          if (data && data.error && data.error.toLowerCase().includes("token")) {
-            handleInvalidToken();
-          } else {
-            setMsg(data.error || "Unauthorized");
-          }
-        } else {
-          setMsg(data.error || "Failed to save plan");
-        }
-      } catch (e) {
-        setMsg("Network error");
-      }
+      showConfirmModal(
+        "Overwrite Plan",
+        `Overwrite existing plan '${selectedPlan.name}'? This action cannot be undone.`,
+        async () => {
+          await performSaveExistingPlan(selectedPlan.path, finalText);
+        },
+        "warning",
+        "Overwrite",
+        "Cancel"
+      );
       return;
     }
 
     // Otherwise create a new saved plan (prompt for a name)
-    const finalName = window.prompt("Enter a name for this plan (ascii only):", selectedPlan?.name || "") || "";
-    if (!finalName) return;
+    showPromptModal(
+      "Save Plan",
+      "Enter a name for this plan (ASCII characters only):",
+      async (finalName) => {
+        if (finalName) {
+          await performSaveNewPlan(finalName, finalText);
+        }
+      },
+      "Plan name",
+      selectedPlan?.name || "",
+      "primary",
+      "Save",
+      "Cancel"
+    );
+  };
+
+  // Separated save operations for modal callbacks
+  const performSaveExistingPlan = async (path, finalText) => {
+    setMsg("Saving changes…");
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const body = { path: path, plan_text: finalText };
+      const res = await apiPost(`${backendURL}/saved_plans/update`, body);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMsg("Changes saved successfully");
+        setSelectedPlan((prev) => ({ ...(prev || {}), text: finalText }));
+        setGeneratedPlan(finalText);
+        setHasUnsavedGeneratedPlan(false);
+        setHasUnsavedChanges(false);
+        try {
+          fetchPlans();
+        } catch (e) {}
+        setIsEditingSaved(false);
+        setView("preview");
+      } else if (res.status === 401) {
+        if (data && data.error && data.error.toLowerCase().includes("token")) {
+          handleInvalidToken();
+        } else {
+          setMsg(data.error || "Unauthorized");
+        }
+      } else {
+        setMsg(data.error || "Failed to save plan");
+      }
+    } catch (e) {
+      setMsg("Network error");
+    }
+  };
+
+  const performSaveNewPlan = async (finalName, finalText) => {
     setMsg("Saving plan…");
     try {
       const headers = { "Content-Type": "application/json" };
@@ -677,8 +801,25 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                       className="btn"
                       onClick={() => {
                         if (hasUnsavedChanges) {
-                          const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?");
-                          if (!confirmCancel) return;
+                          showConfirmModal(
+                            "Unsaved Changes",
+                            "You have unsaved changes. Are you sure you want to cancel?",
+                            () => {
+                              setView("dashboard");
+                              setRequirements("");
+                              setGeneratedPlan("");
+                              setPlanText("");
+                              setHasUnsavedGeneratedPlan(false);
+                              setMsg("");
+                              setIsEditingSaved(false);
+                              setHasUnsavedChanges(false);
+                              window.location.reload();
+                            },
+                            "warning",
+                            "Yes, Cancel",
+                            "Keep Editing"
+                          );
+                          return;
                         }
                         setView("dashboard");
                         setRequirements("");
@@ -780,8 +921,24 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                   className="btn"
                   onClick={() => {
                     if (hasUnsavedChanges) {
-                      const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?");
-                      if (!confirmCancel) return;
+                      showConfirmModal(
+                        "Unsaved Changes",
+                        "You have unsaved changes. Are you sure you want to cancel?",
+                        () => {
+                          setIsEditingSaved(false);
+                          if (selectedPlan) {
+                            setView("preview");
+                          } else {
+                            setView("dashboard");
+                          }
+                          setHasUnsavedChanges(false);
+                          window.location.reload();
+                        },
+                        "warning",
+                        "Yes, Cancel",
+                        "Keep Editing"
+                      );
+                      return;
                     }
                     setIsEditingSaved(false);
                     if (selectedPlan) {
@@ -866,6 +1023,32 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
           {/* generated preview removed (rendered inline in New view or edit view) */}
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
+
+      {/* Custom Prompt Modal */}
+      <PromptModal
+        isOpen={promptModal.isOpen}
+        onClose={closePromptModal}
+        onConfirm={promptModal.onConfirm}
+        title={promptModal.title}
+        message={promptModal.message}
+        placeholder={promptModal.placeholder}
+        defaultValue={promptModal.defaultValue}
+        confirmText={promptModal.confirmText}
+        cancelText={promptModal.cancelText}
+        variant={promptModal.variant}
+      />
     </div>
   );
 }

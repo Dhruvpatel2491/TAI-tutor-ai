@@ -12,6 +12,7 @@ import { DEFAULT_BACKEND_URL } from '../config';
 import { apiGet } from '../services/http';
 import quizService from '../services/quizService';
 import QuizInterface from '../components/QuizInterface';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/Quiz.css';
 import { renderPlanMarkdown } from "../utils/planFormatter";
 
@@ -58,6 +59,43 @@ function QuizPage() {
     }
   });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    variant: "warning",
+    confirmText: "Confirm",
+    cancelText: "Cancel"
+  });
+
+  // Helper to show confirmation modal
+  const showConfirmModal = (title, message, onConfirm, variant = "warning", confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  };
+
+  // Helper to close confirmation modal
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      variant: "warning",
+      confirmText: "Confirm",
+      cancelText: "Cancel"
+    });
+  };
 
   // Load quizzes and plans on mount
   useEffect(() => {
@@ -215,15 +253,23 @@ function QuizPage() {
 
   const handleDeleteQuiz = async (quizId, e) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this quiz?')) return;
-
-    try {
-      await quizService.deleteQuiz(quizId);
-      loadData();
-    } catch (err) {
-      console.error('Failed to delete quiz:', err);
-      setError(err.message || 'Failed to delete quiz');
-    }
+    
+    showConfirmModal(
+      "Delete Quiz",
+      "Are you sure you want to delete this quiz? This action cannot be undone.",
+      async () => {
+        try {
+          await quizService.deleteQuiz(quizId);
+          loadData();
+        } catch (err) {
+          console.error('Failed to delete quiz:', err);
+          setError(err.message || 'Failed to delete quiz');
+        }
+      },
+      "danger",
+      "Delete",
+      "Cancel"
+    );
   };
 
   // Render Quiz Taking View
@@ -541,6 +587,18 @@ function QuizPage() {
           </div>
         </div>
       )}
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

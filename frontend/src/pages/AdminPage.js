@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/adminService';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/AdminPage.css';
 
 const AdminPage = () => {
@@ -25,6 +26,17 @@ const AdminPage = () => {
   // System Settings State
   const [healthInfo, setHealthInfo] = useState(null);
 
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    variant: "warning",
+    confirmText: "Confirm",
+    cancelText: "Cancel"
+  });
+
   useEffect(() => {
     // Check authentication
     if (!adminService.isAuthenticated()) {
@@ -36,6 +48,32 @@ const AdminPage = () => {
     loadTabData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, navigate]);
+
+  // Helper to show confirmation modal
+  const showConfirmModal = (title, message, onConfirm, variant = "warning", confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+      confirmText,
+      cancelText
+    });
+  };
+
+  // Helper to close confirmation modal
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      variant: "warning",
+      confirmText: "Confirm",
+      cancelText: "Cancel"
+    });
+  };
 
   const loadTabData = async () => {
     setLoading(true);
@@ -69,10 +107,19 @@ const AdminPage = () => {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete ${selectedUsers.length} user(s)? This action cannot be undone.`)) {
-      return;
-    }
+    showConfirmModal(
+      "Delete Users",
+      `Are you sure you want to delete ${selectedUsers.length} user(s)? This action cannot be undone.`,
+      async () => {
+        await performDeleteUsers();
+      },
+      "danger",
+      "Delete",
+      "Cancel"
+    );
+  };
 
+  const performDeleteUsers = async () => {
     setLoading(true);
     const errors = [];
     
@@ -128,20 +175,24 @@ const AdminPage = () => {
       alert('Course uploaded successfully!');
       
       // Ask if user wants to rebuild now
-      const shouldRebuild = window.confirm(
-        'Would you like to rebuild the vector database now to include the new course?\n\n(You can also do this later from the System Settings tab)'
+      showConfirmModal(
+        "Rebuild Vector Database",
+        "Would you like to rebuild the vector database now to include the new course?\n\n(You can also do this later from the System Settings tab)",
+        async () => {
+          // Trigger rebuild without additional confirmation
+          try {
+            await adminService.triggerRebuild();
+            alert('Rebuild started in the background. This may take several minutes.');
+          } catch (err) {
+            console.error('Error triggering rebuild:', err);
+            setError('Upload succeeded but rebuild failed. You can trigger it manually from System Settings.');
+          }
+          loadTabData();
+        },
+        "info",
+        "Rebuild Now",
+        "Later"
       );
-      
-      if (shouldRebuild) {
-        // Trigger rebuild without additional confirmation
-        try {
-          await adminService.triggerRebuild();
-          alert('Rebuild started in the background. This may take several minutes.');
-        } catch (err) {
-          console.error('Error triggering rebuild:', err);
-          setError('Upload succeeded but rebuild failed. You can trigger it manually from System Settings.');
-        }
-      }
       
       loadTabData();
     } catch (err) {
@@ -158,10 +209,19 @@ const AdminPage = () => {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete ${selectedCourses.length} course(s)? This action cannot be undone.`)) {
-      return;
-    }
+    showConfirmModal(
+      "Delete Courses",
+      `Are you sure you want to delete ${selectedCourses.length} course(s)? This action cannot be undone.`,
+      async () => {
+        await performDeleteCourses();
+      },
+      "danger",
+      "Delete",
+      "Cancel"
+    );
+  };
 
+  const performDeleteCourses = async () => {
     setLoading(true);
     
     try {
@@ -173,19 +233,24 @@ const AdminPage = () => {
         alert('Courses deleted successfully!');
         
         // Ask if user wants to rebuild now
-        const shouldRebuild = window.confirm(
-          'Would you like to rebuild the vector database now to update the index?\n\n(You can also do this later from the System Settings tab)'
+        showConfirmModal(
+          "Rebuild Vector Database",
+          "Would you like to rebuild the vector database now to update the index?\n\n(You can also do this later from the System Settings tab)",
+          async () => {
+            try {
+              await adminService.triggerRebuild();
+              alert('Rebuild started in the background. This may take several minutes.');
+            } catch (err) {
+              console.error('Error triggering rebuild:', err);
+              setError('Delete succeeded but rebuild failed. You can trigger it manually from System Settings.');
+            }
+            setSelectedCourses([]);
+            loadTabData();
+          },
+          "info",
+          "Rebuild Now",
+          "Later"
         );
-        
-        if (shouldRebuild) {
-          try {
-            await adminService.triggerRebuild();
-            alert('Rebuild started in the background. This may take several minutes.');
-          } catch (err) {
-            console.error('Error triggering rebuild:', err);
-            setError('Delete succeeded but rebuild failed. You can trigger it manually from System Settings.');
-          }
-        }
       }
       
       setSelectedCourses([]);
@@ -290,10 +355,19 @@ const AdminPage = () => {
 
   // System Settings Functions
   const handleRebuild = async () => {
-    if (!window.confirm('This will rebuild the entire vector database. The process may take several minutes. Continue?')) {
-      return;
-    }
+    showConfirmModal(
+      "Rebuild Vector Database",
+      "This will rebuild the entire vector database. The process may take several minutes. Continue?",
+      async () => {
+        await handleRebuildVectorDB();
+      },
+      "warning",
+      "Rebuild",
+      "Cancel"
+    );
+  };
 
+  const handleRebuildVectorDB = async () => {
     setLoading(true);
     setError(null);
     
@@ -616,6 +690,18 @@ const AdminPage = () => {
           )}
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 };
