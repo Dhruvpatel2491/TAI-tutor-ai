@@ -249,7 +249,7 @@ def query_v3():
     
     When response_type is 'auto', an LLM router determines:
     - Whether RAG retrieval is needed
-    - Which response type (hint/socratic) to use
+    - Which response type (hint/directive) to use
     - Whether to generate code directly without retrieval
     """
     payload = request.get_json(force=True, silent=True) or {}
@@ -359,8 +359,8 @@ def query_v3():
         
         except Exception as e:
             logger.exception("Router failed, using default RAG path")
-            # Fall back to socratic if routing fails
-            response_type = "socratic"
+            # Fall back to directive if routing fails
+            response_type = "directive"
 
     # Check cache (only if not using conversation history)
     use_cache = payload.get("use_cache", True)

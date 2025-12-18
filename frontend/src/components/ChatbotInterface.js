@@ -91,7 +91,7 @@ const RESPONSE_STYLES = [
 
 const RESPONSE_TYPES = [
   { value: 'hinting', label: 'Hint' },
-  { value: 'socratic', label: 'Socratic' },
+  { value: 'directive', label: 'Directive' },
   { value: 'auto', label: 'Auto (default)' }
 ];
 
@@ -772,14 +772,7 @@ const ChatbotInterface = () => {
       </div>
         {/* Input Area */}
         <div className="input-container">
-          <button
-            className="settings-toggle-btn"
-            onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-            title={showSettingsPanel ? "Hide settings" : "Show settings"}
-            aria-label="Toggle settings panel"
-          >
-            ⚙︎
-          </button>
+          
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -795,6 +788,14 @@ const ChatbotInterface = () => {
             className="send-button"
           >
             {loading ? 'Sending...' : 'Send'}
+          </button>
+          <button
+            className="settings-toggle-btn"
+            onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+            title={showSettingsPanel ? "Hide settings" : "Show settings"}
+            aria-label="Toggle settings panel"
+          >
+            ⚙︎
           </button>
         </div>
       </div>

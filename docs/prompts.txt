@@ -39,7 +39,7 @@ The TAI Tutor AI prompt system is designed with the following core principles:
 
 3. ADAPTABILITY
    - Prompts can be customized for different learning styles (formal, casual, technical)
-   - Support for different response types (direct, hinting, socratic)
+   - Support for different response types (direct, hinting, directive)
    - Adjustable response lengths and detail levels
 
 4. QUALITY ASSURANCE
@@ -144,8 +144,8 @@ B. HINTING RESPONSE
 - Only provides additional hints if student genuinely stuck
 - Goal: Help learn to solve problems independently
 
-C. SOCRATIC RESPONSE
-- Uses Socratic method for discovery learning
+C. DIRECTIVE RESPONSE
+- Uses directive method for clear, structured explanations
 - Facilitates critical thinking through dialogue
 - Asks thought-provoking, open-ended questions
 - Gently challenges assumptions
@@ -642,7 +642,7 @@ Quiz System:
 
 2. USE APPROPRIATE MODES
    - Try "hinting" mode for homework
-   - Use "socratic" mode to deepen understanding
+   - Use "directive" mode for clear, structured explanations
    - Save "direct" mode for quick clarifications
 
 3. VERIFY UNDERSTANDING

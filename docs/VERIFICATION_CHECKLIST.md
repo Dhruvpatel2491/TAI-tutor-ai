@@ -5,7 +5,7 @@
 ### Frontend Changes
 - [x] Updated `RESPONSE_TYPES` in ChatbotInterface.js
 - [x] Removed "Direct" option
-- [x] Added "Hint", "Socratic", "Auto (default)"
+- [x] Added "Hint", "Directive", "Auto (default)"
 - [x] Changed default to "auto"
 - [x] No compilation errors
 
@@ -103,7 +103,7 @@ curl -X POST http://localhost:5001/query_v3 \
 # - "routing" object with decision details
 # - "used_rag" field
 # - "original_response_type": "auto"
-# - "response_type": "socratic" or "hinting"
+# - "response_type": "directive" or "hinting"
 ```
 
 ### 6. Test Code Generation (No RAG)
@@ -134,7 +134,7 @@ python manual_router_test.py
 cd frontend
 npm start
 # Open browser to http://localhost:3000
-# Check Response Type dropdown has: Hint, Socratic, Auto (default)
+# Check Response Type dropdown has: Hint, Directive, Auto (default)
 # Default should be Auto
 ```
 
@@ -143,7 +143,7 @@ npm start
 1. Open chatbot
 2. Verify "Response Type" shows "Auto (default)"
 3. Ask: "What is recursion?"
-   - Should use Socratic method
+   - Should use Directive method
 4. Ask: "Write a function to add two numbers"
    - Should provide hints for coding
 5. Ask: "Hello!"

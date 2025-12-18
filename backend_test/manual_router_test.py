@@ -98,7 +98,7 @@ def main():
     tests = [
         {
             "question": "What is a binary search tree?",
-            "description": "Conceptual question (should use RAG + Socratic)"
+            "description": "Conceptual question (should use RAG + Directive)"
         },
         {
             "question": "Write a Python function to reverse a string",
@@ -106,7 +106,7 @@ def main():
         },
         {
             "question": "How does bubble sort work?",
-            "description": "Algorithm explanation (should use RAG + Socratic)"
+            "description": "Algorithm explanation (should use RAG + Directive)"
         },
         {
             "question": "Hello, how are you today?",

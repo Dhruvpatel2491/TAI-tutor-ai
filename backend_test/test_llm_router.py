@@ -74,7 +74,7 @@ def test_routing_decision_to_dict():
     decision = RoutingDecision(
         intent=QueryIntent.RAG_RETRIEVAL,
         needs_retrieval=True,
-        response_type=ResponseTypeDecision.SOCRATIC,
+        response_type=ResponseTypeDecision.DIRECTIVE,
         confidence=0.9,
         reasoning="Test reasoning"
     )
@@ -83,7 +83,7 @@ def test_routing_decision_to_dict():
     
     assert result["intent"] == "rag_retrieval"
     assert result["needs_retrieval"] == True
-    assert result["response_type"] == "socratic"
+    assert result["response_type"] == "directive"
     assert result["confidence"] == 0.9
     assert result["reasoning"] == "Test reasoning"
 

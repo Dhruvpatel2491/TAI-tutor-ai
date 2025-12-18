@@ -32,7 +32,7 @@ Your Question
 LLM Router (llama3:8b)
     ↓
 Decision:
-├─ Needs RAG? → Yes → Fetch from knowledge base → Socratic/Hint response
+├─ Needs RAG? → Yes → Fetch from knowledge base → Directive/Hint response
 └─ Needs RAG? → No  → Direct LLM generation → Code or conversation
     ↓
 Your Answer (+ routing metadata)
@@ -40,14 +40,14 @@ Your Answer (+ routing metadata)
 
 ## Example Queries
 
-### Conceptual Question (Uses RAG + Socratic)
+### Conceptual Question (Uses RAG + Directive)
 ```json
 {
   "question": "What is recursion?",
   "response_type": "auto"
 }
 ```
-**Router Decision:** Retrieves course materials, uses Socratic method
+**Router Decision:** Retrieves course materials, uses Directive method
 
 ### Code Generation (Skips RAG + Hint)
 ```json
@@ -58,7 +58,7 @@ Your Answer (+ routing metadata)
 ```
 **Router Decision:** Generates code directly without retrieval
 
-### Algorithm Explanation (Uses RAG + Socratic)
+### Algorithm Explanation (Uses RAG + Directive)
 ```json
 {
   "question": "How does bubble sort work?",
@@ -85,14 +85,14 @@ When using auto mode, responses include routing metadata:
   "answer": "Let me guide you through understanding binary search trees...",
   "cached": false,
   "style": "casual",
-  "response_type": "socratic",
+  "response_type": "directive",
   "original_response_type": "auto",
   "length": "short",
   "used_rag": true,
   "routing": {
     "intent": "rag_retrieval",
     "needs_retrieval": true,
-    "response_type": "socratic",
+    "response_type": "directive",
     "confidence": 0.9,
     "reasoning": "Conceptual question about data structures"
   }
@@ -101,7 +101,7 @@ When using auto mode, responses include routing metadata:
 
 ## Benefits
 
-- **Automatic**: No need to choose between Hint and Socratic
+- **Automatic**: No need to choose between Hint and Directive
 - **Efficient**: Skips RAG when not needed
 - **Smart**: Matches teaching style to question type
 - **Transparent**: See routing decision in response
@@ -158,7 +158,7 @@ Or:
 ```json
 {
   "question": "What is a binary search tree?",
-  "response_type": "socratic"  // Force socratic mode
+  "response_type": "directive"  // Force directive mode
 }
 ```
 

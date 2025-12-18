@@ -7,7 +7,7 @@
 
 - ✅ Updated `RESPONSE_TYPES` array
   - Removed: "Direct"
-  - Added: "Hint", "Socratic", "Auto (default)"
+  - Added: "Hint", "Directive", "Auto (default)"
 - ✅ Changed default response type from "direct" to "auto"
 - ✅ Updated UI labels for better clarity
 
@@ -16,7 +16,7 @@
 
 - ✅ Created `LLMRouter` class using llama3:8b
 - ✅ Implemented `QueryIntent` enum (RAG_RETRIEVAL, CODE_GENERATION, GENERAL_CONVERSATION)
-- ✅ Implemented `ResponseTypeDecision` enum (HINT, SOCRATIC)
+- ✅ Implemented `ResponseTypeDecision` enum (HINT, DIRECTIVE)
 - ✅ Created `RoutingDecision` class for results
 - ✅ Built structured prompt template for routing decisions
 - ✅ Implemented fallback heuristics when LLM unavailable
@@ -33,7 +33,7 @@
 
 - ✅ Updated `validate_response_type()` to accept "auto"
 - ✅ Changed default from "direct" to "auto"
-- ✅ Validated against new allowed types: ["hinting", "socratic", "auto"]
+- ✅ Validated against new allowed types: ["hinting", "directive", "auto"]
 
 ### 4. Query Endpoint Integration
 **File:** `backend/server_v2.py`
@@ -50,7 +50,7 @@
 **Response includes:**
 - `routing`: Full routing decision
 - `original_response_type`: User's selection ("auto")
-- `response_type`: Actual type used ("hinting" or "socratic")
+- `response_type`: Actual type used ("hinting" or "directive")
 - `used_rag`: Whether RAG was invoked
 
 ### 5. Prompt Template Updates
@@ -59,7 +59,7 @@
 - ✅ Added "auto" to `TYPE_TEMPLATES`
 - ✅ Updated default response type to "auto"
 - ✅ Added documentation for auto mode
-- ✅ Maintained "hinting" and "socratic" templates
+- ✅ Maintained "hinting" and "directive" templates
 
 ### 6. Testing & Documentation
 **Files Created:**
@@ -80,7 +80,7 @@ LLM Router (llama3:8b) analyzes question
 Router returns RoutingDecision:
   ├─ intent: QueryIntent
   ├─ needs_retrieval: bool
-  ├─ response_type: "hinting" | "socratic"
+  ├─ response_type: "hinting" | "directive"
   ├─ confidence: 0.0-1.0
   └─ reasoning: string
     ↓
@@ -100,7 +100,7 @@ Response with answer + routing metadata
 **Conceptual Questions:**
 - Intent: RAG_RETRIEVAL
 - Needs Retrieval: True
-- Response Type: Socratic
+- Response Type: Directive
 - Examples: "What is...", "How does...", "Explain..."
 
 **Code Generation:**
@@ -112,7 +112,7 @@ Response with answer + routing metadata
 **Algorithm Questions:**
 - Intent: RAG_RETRIEVAL
 - Needs Retrieval: True
-- Response Type: Socratic
+- Response Type: Directive
 - Examples: "How does quicksort work?"
 
 **Greetings:**
@@ -128,7 +128,7 @@ Response with answer + routing metadata
    - Skips RAG for simple conversations (~2-3s saved)
 
 2. **Better Pedagogy**
-   - Socratic method for conceptual learning
+   - Directive method for clear explanations
    - Hints for problem-solving tasks
    - Automatic selection based on question type
 
@@ -162,7 +162,7 @@ ROUTER_TIMEOUT = 30                 # Seconds before fallback
 When router fails or times out:
 - Uses heuristic-based routing
 - Keyword matching (write, create, etc.)
-- Defaults to RAG + Socratic when uncertain
+- Defaults to RAG + Directive when uncertain
 
 ## 🧪 Testing
 
@@ -274,7 +274,7 @@ WARNING: Router failed, using default RAG path
 
 Successfully implemented an intelligent LLM routing layer that:
 - ✅ Automatically determines if RAG retrieval is needed
-- ✅ Selects appropriate response type (Hint/Socratic)
+- ✅ Selects appropriate response type (Hint/Directive)
 - ✅ Handles code generation without retrieval
 - ✅ Optimizes resource usage and response times
 - ✅ Provides transparent routing decisions

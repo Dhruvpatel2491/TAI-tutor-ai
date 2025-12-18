@@ -16,7 +16,7 @@ User Query (Response Type: Auto)
    │  ├─ Yes → Fetch from Vector DB
    │  │        ↓
    │  │   Response Type Decision
-   │  │   ├─ Socratic (conceptual questions)
+   │  │   ├─ Directive (conceptual questions)
    │  │   └─ Hint (problem-solving)
    │  │        ↓
    │  │   Generate Response with RAG
@@ -36,13 +36,13 @@ User Query (Response Type: Auto)
 
 **Modified Response Type Options:**
 - Removed: "Direct"
-- Updated: "Hint", "Socratic", "Auto (default)"
+- Updated: "Hint", "Directive", "Auto (default)"
 - Default: "auto"
 
 ```javascript
 const RESPONSE_TYPES = [
   { value: 'hinting', label: 'Hint' },
-  { value: 'socratic', label: 'Socratic' },
+  { value: 'directive', label: 'Directive' },
   { value: 'auto', label: 'Auto (default)' }
 ];
 ```
@@ -53,7 +53,7 @@ const RESPONSE_TYPES = [
 
 **Key Classes:**
 - `QueryIntent`: Enum defining query types (RAG_RETRIEVAL, CODE_GENERATION, GENERAL_CONVERSATION)
-- `ResponseTypeDecision`: Enum for response types (HINT, SOCRATIC)
+- `ResponseTypeDecision`: Enum for response types (HINT, DIRECTIVE)
 - `RoutingDecision`: Container for routing results
 - `LLMRouter`: Main router class using llama3:8b
 
@@ -64,7 +64,7 @@ def route_query(question: str) -> RoutingDecision:
     Analyzes question and returns:
     - intent: Type of query
     - needs_retrieval: Whether to use RAG
-    - response_type: Hint or Socratic
+    - response_type: Hint or Directive
     - confidence: Decision confidence (0.0-1.0)
     - reasoning: Explanation
     """
@@ -98,14 +98,14 @@ When LLM is unavailable, uses heuristics:
   "answer": "...",
   "cached": false,
   "style": "formal",
-  "response_type": "socratic",
+  "response_type": "directive",
   "original_response_type": "auto",
   "length": "short",
   "used_rag": true,
   "routing": {
     "intent": "rag_retrieval",
     "needs_retrieval": true,
-    "response_type": "socratic",
+    "response_type": "directive",
     "confidence": 0.9,
     "reasoning": "Conceptual question about data structures"
   }
@@ -118,10 +118,10 @@ When LLM is unavailable, uses heuristics:
 ```python
 "auto": """AUTO MODE: This response type is determined automatically by an intelligent router.
 The router analyzes the question and chooses the most appropriate teaching approach:
-- For conceptual questions: Uses Socratic method to guide discovery
+- For conceptual questions: Uses Directive method to provide clear explanations
 - For problem-solving tasks: Provides hints to scaffold learning
 - For code generation: May generate directly without retrieval if appropriate
-This template should not be used directly - it's replaced by 'hinting' or 'socratic' after routing."""
+This template should not be used directly - it's replaced by 'hinting' or 'directive' after routing."""
 ```
 
 ### 5. Validation Updates (`backend/rag/retrieval_chat.py`)
@@ -131,7 +131,7 @@ This template should not be used directly - it's replaced by 'hinting' or 'socra
 def validate_response_type(response_type: Optional[str]) -> str:
     """Validate and normalize response type parameter."""
     response_type = (response_type or "auto").lower()
-    if response_type not in ["hinting", "socratic", "auto"]:
+    if response_type not in ["hinting", "directive", "auto"]:
         return "auto"
     return response_type
 ```
@@ -156,7 +156,7 @@ def validate_response_type(response_type: Optional[str]) -> str:
 The router uses a structured prompt that asks the LLM to:
 1. Identify query intent (RAG/code/conversation)
 2. Determine if retrieval is needed
-3. Select response type (hint/socratic)
+3. Select response type (hint/directive)
 4. Provide confidence score
 5. Explain reasoning
 
@@ -169,10 +169,10 @@ Response format: JSON with required fields
 **Router Decision:**
 - Intent: RAG_RETRIEVAL
 - Needs Retrieval: True
-- Response Type: Socratic
-- Reasoning: "Conceptual question about data structures, benefits from guided discovery"
+- Response Type: Directive
+- Reasoning: "Conceptual question about data structures, benefits from clear explanations"
 
-**Processing:** Uses RAG to fetch course materials, applies Socratic method
+**Processing:** Uses RAG to fetch course materials, applies Directive method
 
 ### Case 2: Code Generation
 **Query:** "Write a Python function to reverse a string"
@@ -189,10 +189,10 @@ Response format: JSON with required fields
 **Router Decision:**
 - Intent: RAG_RETRIEVAL
 - Needs Retrieval: True
-- Response Type: Socratic
+- Response Type: Directive
 - Reasoning: "Algorithm explanation likely in course materials"
 
-**Processing:** Retrieves algorithm content from PDFs/slides, uses Socratic teaching
+**Processing:** Retrieves algorithm content from PDFs/slides, uses Directive teaching
 
 ### Case 4: General Conversation
 **Query:** "Hello, how are you?"

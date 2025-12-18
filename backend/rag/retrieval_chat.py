@@ -101,7 +101,7 @@ class ResponseCache:
         Args:
             question: The user's question
             style: Response style (formal, casual, technical)
-            response_type: Response type (direct, hinting, socratic)
+            response_type: Response type (direct, hinting, directive)
             length: Response length (short, medium, long)
             model: LLM model name
             
@@ -453,7 +453,7 @@ def validate_style(style: Optional[str]) -> str:
 def validate_response_type(response_type: Optional[str]) -> str:
     """Validate and normalize response type parameter."""
     response_type = (response_type or "auto").lower()
-    if response_type not in ["hinting", "socratic", "auto"]:
+    if response_type not in ["hinting", "directive", "auto"]:
         return "auto"
     return response_type
 

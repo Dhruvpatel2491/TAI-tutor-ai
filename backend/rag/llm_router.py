@@ -6,7 +6,7 @@ When a user selects "Auto" response type, this router:
 1. Analyzes the user's question using a lightweight LLM (llama3:8b)
 2. Determines if RAG retrieval is needed from the vector database
 3. Decides whether the query is for code generation without retrieval
-4. Selects the appropriate response type (hint vs socratic)
+4. Selects the appropriate response type (hint vs directive)
 
 The router acts as a decision layer to optimize query handling and provide
 context-appropriate responses.
@@ -45,7 +45,7 @@ class QueryIntent(Enum):
 class ResponseTypeDecision(Enum):
     """Response type decisions for RAG queries."""
     HINT = "hinting"
-    SOCRATIC = "socratic"
+    DIRECTIVE = "directive"
 
 
 class RoutingDecision:
@@ -55,7 +55,7 @@ class RoutingDecision:
     Attributes:
         intent: The determined query intent
         needs_retrieval: Whether RAG retrieval is required
-        response_type: Recommended response type (hint or socratic)
+        response_type: Recommended response type (hint or directive)
         confidence: Confidence score of the decision (0.0 to 1.0)
         reasoning: Brief explanation of the decision
     """
@@ -105,7 +105,7 @@ Determine:
 
 3. Response Type: How should we teach this student?
    - "hinting": For questions where the student should work through it themselves (homework-style)
-   - "socratic": For conceptual questions where guided discovery helps learning (why/how questions)
+   - "directive": For conceptual questions where clear, direct explanations help learning (why/how questions)
 
 4. Confidence: How confident are you in this routing decision? (0.0 to 1.0)
 
@@ -117,7 +117,7 @@ Question: "What is a binary search tree?"
 {{
   "intent": "rag_retrieval",
   "needs_retrieval": true,
-  "response_type": "socratic",
+  "response_type": "directive",
   "confidence": 0.9,
   "reasoning": "Conceptual question about a data structure likely covered in course materials"
 }}
@@ -135,9 +135,9 @@ Question: "How does the bubble sort algorithm work?"
 {{
   "intent": "rag_retrieval",
   "needs_retrieval": true,
-  "response_type": "socratic",
+  "response_type": "directive",
   "confidence": 0.9,
-  "reasoning": "Algorithm explanation likely in course materials, benefits from guided learning"
+  "reasoning": "Algorithm explanation likely in course materials, benefits from clear explanations"
 }}
 
 Question: "Hello, how are you?"
@@ -299,8 +299,8 @@ class LLMRouter:
             
             # Map response type string to enum
             response_type_str = data["response_type"]
-            if response_type_str == "socratic":
-                response_type = ResponseTypeDecision.SOCRATIC
+            if response_type_str == "directive":
+                response_type = ResponseTypeDecision.DIRECTIVE
             else:
                 response_type = ResponseTypeDecision.HINT
             
@@ -363,13 +363,13 @@ class LLMRouter:
                 reasoning="Code generation request (fallback heuristic)"
             )
         else:
-            # Default: assume needs retrieval and use socratic method
+            # Default: assume needs retrieval and use directive method
             return RoutingDecision(
                 intent=QueryIntent.RAG_RETRIEVAL,
                 needs_retrieval=True,
-                response_type=ResponseTypeDecision.SOCRATIC,
+                response_type=ResponseTypeDecision.DIRECTIVE,
                 confidence=0.6,
-                reasoning="Default routing to RAG with socratic method (fallback heuristic)"
+                reasoning="Default routing to RAG with directive method (fallback heuristic)"
             )
 
 

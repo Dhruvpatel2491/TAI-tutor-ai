@@ -4,7 +4,7 @@ Chat-related prompts for TAI Tutor AI.
 This module provides centralized prompt management for the chat system.
 It supports:
 - Response Styles: Formal, Casual, Technical
-- Response Types: Direct, Hinting, Socratic
+- Response Types: Direct, Hinting, Directive
 - Response Lengths: Short, Medium, Long
 - Conversation History Context
 """
@@ -84,22 +84,22 @@ This promotes active learning and deeper understanding. Do NOT give the direct a
 5. Only provide additional hints or partial solutions if they remain stuck after genuine effort
 Remember: The goal is to help them learn to solve problems independently.""",
         
-        "socratic": """Use the Socratic method to facilitate discovery learning and critical thinking.
-Instead of providing direct answers, engage in a dialogue that leads students to insights:
-1. Ask thought-provoking, open-ended questions that probe their understanding
-2. Gently challenge assumptions and encourage them to justify their reasoning
-3. Guide them through logical reasoning by breaking down complex problems
-4. Build on their responses to lead them toward the correct understanding
-5. Celebrate their discoveries and insights, reinforcing positive learning behaviors
-6. Encourage deeper exploration by asking "what if" or "why do you think" questions
-Focus on developing their problem-solving skills and metacognition.""",
+        "directive": """Provide clear, direct explanations that facilitate comprehensive understanding.
+Deliver well-structured, informative responses that guide students to knowledge:
+1. Explain concepts clearly and directly with appropriate detail
+2. Present information in a logical, easy-to-follow structure
+3. Use examples and analogies to reinforce understanding
+4. Break down complex topics into manageable components
+5. Emphasize key points and important takeaways
+6. Connect new information to previously learned concepts
+Focus on delivering accurate, complete explanations that build solid foundational knowledge.""",
         
         "auto": """AUTO MODE: This response type is determined automatically by an intelligent router.
 The router analyzes the question and chooses the most appropriate teaching approach:
-- For conceptual questions: Uses Socratic method to guide discovery
+- For conceptual questions: Uses directive method to provide clear explanations
 - For problem-solving tasks: Provides hints to scaffold learning
 - For code generation: May generate directly without retrieval if appropriate
-This template should not be used directly - it's replaced by 'hinting' or 'socratic' after routing."""
+This template should not be used directly - it's replaced by 'hinting' or 'directive' after routing."""
     }
     
     # Response Length Guidelines
@@ -162,7 +162,7 @@ redirect the conversation toward legitimate educational goals."""
         
         Args:
             style: Response style - 'formal', 'casual', or 'technical'
-            response_type: Response type - 'direct', 'hinting', or 'socratic'
+            response_type: Response type - 'direct', 'hinting', or 'directive'
             length: Response length - 'short', 'medium', or 'long'
             conversation_history: Optional list of previous conversation messages
         """
@@ -240,7 +240,7 @@ redirect the conversation toward legitimate educational goals."""
         # Add the current question
         parts.append(f"\nStudent's Question: {user_question}")
         parts.append("\nYour Response:")
-        
+        # print("\n".join(parts))
         return "\n".join(parts)
     
     def add_message(self, role: str, content: str) -> None:
@@ -353,9 +353,9 @@ def get_direct_prompt(question: str, style: str = "formal") -> str:
     return prompter.build_full_prompt(question)
 
 
-def get_socratic_prompt(question: str, style: str = "formal") -> str:
-    """Generate a Socratic-method prompt."""
-    prompter = ChatPrompter(style=style, response_type="socratic", length="medium")
+def get_directive_prompt(question: str, style: str = "formal") -> str:
+    """Generate a directive-method prompt."""
+    prompter = ChatPrompter(style=style, response_type="directive", length="medium")
     return prompter.build_full_prompt(question)
 
 
@@ -365,4 +365,4 @@ def get_socratic_prompt(question: str, style: str = "formal") -> str:
 
 DEFAULT_PROMPTER = ChatPrompter()
 HINT_PROMPTER = ChatPrompter(response_type="hinting")
-SOCRATIC_PROMPTER = ChatPrompter(response_type="socratic")
+DIRECTIVE_PROMPTER = ChatPrompter(response_type="directive")

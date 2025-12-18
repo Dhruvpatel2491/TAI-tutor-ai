@@ -14,7 +14,7 @@ from backend.prompts.chat_prompts import ChatPrompter
 # Create prompter with preferences
 prompter = ChatPrompter(
     style="formal",        # "formal", "casual", or "technical"
-    response_type="direct", # "direct", "hinting", or "socratic"
+    response_type="direct", # "direct", "hinting", or "directive"
     length="medium"        # "short", "medium", or "long"
 )
 
@@ -40,7 +40,7 @@ prompt = prompter.build_full_prompt(user_question)
 |------|----------|----------|
 | **Direct** | Quick answers, clarifications | Complete explanation |
 | **Hinting** | Homework, building problem-solving skills | Strategic hints, guiding questions |
-| **Socratic** | Deepening understanding, critical thinking | Thought-provoking questions |
+| **Directive** | Clear explanations, structured learning | Direct, comprehensive instruction |
 
 ### Content Safety
 **Automatically blocks:**
@@ -244,7 +244,7 @@ quick_answer_prompter = ChatPrompter(
 
 deep_dive_prompter = ChatPrompter(
     style="technical", 
-    response_type="socratic", 
+    response_type="directive", 
     length="long"
 )
 ```

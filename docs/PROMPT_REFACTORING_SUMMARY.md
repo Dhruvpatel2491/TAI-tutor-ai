@@ -15,7 +15,7 @@ This document summarizes the comprehensive prompt refactoring initiative that im
 #### Improvements:
 - **Enhanced Base System Prompt**: Added comprehensive content guardrails and educational boundaries
 - **Refined Response Styles**: Expanded formal, casual, and technical style definitions with clear behavioral expectations
-- **Improved Response Types**: Enhanced direct, hinting, and socratic response approaches with detailed guidelines
+- **Improved Response Types**: Enhanced direct, hinting, and directive response approaches with detailed guidelines
 - **Added Safety Module**: Implemented `check_content_safety()` method with pattern-based content filtering
 - **Harmful Pattern Detection**: Regex-based detection of potentially harmful requests
 - **Educational Context Recognition**: Smart detection of legitimate educational queries about sensitive topics
