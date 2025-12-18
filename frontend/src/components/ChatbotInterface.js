@@ -14,19 +14,71 @@ const INITIAL_MESSAGE = {
   timestamp: new Date()
 };
 const DEFAULT_MODEL = 'llama3:70b';
-const AVAILABLE_MODELS = [
-  'gpt-oss-safeguard:20b',
-  'gpt-oss:latest',
-  'ollama pull llama3.3:70b',
-  'llama4:16x17b',
-  'llama3.3:70b',
-  'llama3:8b',
-  'llama3:70b',
-  'llama3-chatqa:70b',
-  'codegemma:7b',
-  'gemma:7b',
-];
 
+// Group models into buckets for a clearer, ordered dropdown.
+// Group order: fast, balanced, precise, legacy
+const MODEL_GROUPS = {
+  fast: [
+    'gemma:7b',
+    'codegemma:7b',
+    'llama3:8b'
+  ],
+  balanced: [
+    'codellama:34b',
+    'gpt-oss:20b',
+    'gpt-oss-safeguard:20b',
+    'llama3.3:70b',
+    'llama3:70b'
+  ],
+  precise: [
+    'gpt-oss:120b',
+    'llama4:16x17b'
+  ],
+  legacy: [
+    'llama3-chatqa:latest',
+    'llama3:latest',
+    'llama2:latest'
+  ]
+};
+
+const MODEL_GROUP_ORDER = ['fast', 'balanced', 'precise', 'legacy'];
+
+// Utility to display a nicer label in the dropdown
+
+// Map model keys (the actual option values) to friendly display names.
+// Keys must match the exact strings used in MODEL_GROUPS.
+const MODEL_DISPLAY_NAMES = {
+  'gemma:7b': 'Gemma 7B',
+  'codegemma:7b': 'CodeGemma 7B',
+  'llama3:8b': 'Llama3 8B',
+
+  'codellama:34b': 'CodeLlama 34B',
+  'gpt-oss:20b': 'GPT-OSS 20B',
+  'gpt-oss-safeguard:20b': 'GPT-OSS Safeguard 20B',
+  'llama3.3:70b': 'Llama3.3 70B',
+  'llama3:70b': 'Llama3 70B',
+
+  'gpt-oss:120b': 'GPT-OSS 120B',
+  'llama4:16x17b': 'Llama4 16x17B',
+
+  'llama3-chatqa:latest': 'Llama3 ChatQA (latest)',
+  'llama3:latest': 'Llama3 (latest)',
+  'llama2:latest': 'Llama2 (latest)'
+};
+
+const formatModelLabel = (model) => {
+  // Prefer explicit mapping when available.
+  if (MODEL_DISPLAY_NAMES[model]) return MODEL_DISPLAY_NAMES[model];
+
+  // Fallback: remove common suffixes and prefixes, convert hyphens to spaces, and trim
+  let label = model.replace(/^ollama pull\s+/, '');
+  label = label.replace(/:latest$/, ' (latest)');
+  label = label.replace(/:([0-9]+b)/g, ' $1');
+  label = label.replace(/:([0-9]+x[0-9]+b)/g, ' $1');
+  label = label.replace(/[-_]/g, ' ');
+  // Capitalize first letter
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 // Response configuration options
 const RESPONSE_STYLES = [
   { value: 'formal', label: 'Formal' },
@@ -59,7 +111,6 @@ const ChatbotInterface = () => {
 
   // State - Model Configuration
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
-  const [models] = useState(AVAILABLE_MODELS);
 
   // State - Response Configuration
   const [responseStyle, setResponseStyle] = useState('formal');
@@ -459,7 +510,7 @@ const ChatbotInterface = () => {
             onClick={handleNewChat}
             title="Start a new conversation"
           >
-            ➕ New Chat
+            ✚ New Chat
           </button>
 
           <div className="sidebar-filters">
@@ -530,7 +581,7 @@ const ChatbotInterface = () => {
             >
               ☰
             </button>
-            <h1>TAI Tutor AI</h1>
+            <h1>ChatBot</h1>
             <p>AI-Powered Learning Assistant</p>
           </div>
 
@@ -551,7 +602,7 @@ const ChatbotInterface = () => {
                 title="Export chat as text file"
                 disabled={messages.length <= 1}
               >
-                📥 Export
+                 ➜] Export
               </button>
             </div>
 
@@ -682,7 +733,7 @@ const ChatbotInterface = () => {
             title={showSettingsPanel ? "Hide settings" : "Show settings"}
             aria-label="Toggle settings panel"
           >
-            ⚙️
+            ⚙︎
           </button>
           <textarea
             value={inputValue}
@@ -691,7 +742,7 @@ const ChatbotInterface = () => {
             placeholder="Type your question here... (Shift+Enter for new line)"
             disabled={loading}
             className="message-input"
-            rows="3"
+            rows="2"
           />
           <button
             onClick={sendMessage}
@@ -725,17 +776,30 @@ const ChatbotInterface = () => {
 
         <div className="panel-section">
           <label htmlFor="model-dropdown">Model</label>
-          <select
-            id="model-dropdown"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            disabled={loading}
-            className="param-dropdown"
-          >
-            {models.map(model => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
+          <div className="model-select-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <select
+              id="model-dropdown"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={loading}
+              className="param-dropdown"
+              style={{ minWidth: 220 }}
+            >
+              {MODEL_GROUP_ORDER.map(groupKey => {
+                const items = MODEL_GROUPS[groupKey] || [];
+                if (!items.length) return null;
+                // sort alphabetically for predictable order
+                const sorted = [...items].sort((a, b) => a.localeCompare(b));
+                return (
+                  <optgroup label={groupKey.charAt(0).toUpperCase() + groupKey.slice(1)} key={groupKey}>
+                    {sorted.map(m => (
+                      <option key={m} value={m}>{formatModelLabel(m)}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+          </div>
         </div>
 
         <div className="panel-section">

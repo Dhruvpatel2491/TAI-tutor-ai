@@ -17,7 +17,9 @@
   --color-bg-page: #F7F7F6;       /* light neutral page background */
   --color-bg-primary: #FFFFFF;    /* card surface */
   --color-bg-secondary: #FBFAF6;  /* subtle warm alt surface */
-  --color-bg-tertiary: #DECC9E;   /* warm sand - muted surfaces */
+  --color-bg-tertiary: #decc9e;   /* warm sand - muted surfaces */
+
+
   
   /* Surface aliases for consistency */
   --color-surface: #FFFFFF;
@@ -25,8 +27,8 @@
   
   /* Primary brand color - mid-teal */
   --color-primary: #53A2A7;
-  --color-primary-hover: #30838C;
-  --color-primary-light: #E8F4F4;
+  --color-primary-hover: #30838c;
+  --color-primary-light: rgba(83, 162, 167, 0.3);
   --color-primary-dark: #30838C;
   
   /* Accent colors from new palette */
@@ -35,8 +37,13 @@
   --color-danger: #DC2626;        /* standard red for errors */
   
   /* Secondary accent */
-  --color-secondary: #6B7280;
-  --color-secondary-hover: #4B5563;
+  --color-secondary: #A6BB95;
+  --color-secondary-light: rgba(166, 187, 149, 0.3);
+
+  --color-tertiary: #D5BF85;
+  --color-tertiary-light: rgba(213, 191, 133, 0.3);
+  --color-tertiary-dark: #9C7F35;
+  --color-tertiary-hover: #CAAD63;
   
   /* Success/Error/Warning mapped to palette */
   --color-success: #53A2A7;       /* using primary teal for success */

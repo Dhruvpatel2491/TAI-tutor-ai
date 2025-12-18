@@ -16,7 +16,7 @@
   font-family: var(--fm-font);
   word-wrap: break-word;
   white-space: pre-wrap;
-  font-size: clamp(0.95rem, 1vw + 0.4rem, 1.05rem);
+  font-size: clamp(0.95rem, 1vw + 0.4rem, 1rem);
   line-height: 1.5;
 }
 
