@@ -47,6 +47,13 @@ const HomePage = () => {
       description: 'Practice coding with interactive challenges and real-time feedback.',
       color: 'purple',
     },
+    {
+      to: '/chat',
+      emoji: '🔗',
+      title: 'RAG Pipeline',
+      description: 'Advanced retrieval with chain-of-prompts architecture and intelligent guardrails.',
+      color: 'primary',
+    },
   ];
 
   const getColorClasses = (color) => {
@@ -86,7 +93,7 @@ const HomePage = () => {
       <header className="bg-gradient-to-br from-[#53A2A7] via-[#30838c] to-[#A6BB95] text-white px-4 py-4 text-center flex-shrink-0 rounded-t-2xl">
         {/* Title */}
           <div className="flex items-center justify-center gap-3 mb-3">
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold">🎓 Your Local AI Tutoring Platform for Developers</h3>
+            <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold">🎓 Your Local AI Tutoring Platform for Students</h3>
           </div>
           
           {/* Separator */}
@@ -125,13 +132,13 @@ const HomePage = () => {
 
       {/* Features Section - Grid fills remaining space */}
       <section className="flex-1 flex flex-col justify-center bg-[#F7F7F6]">
-        <div className="max-w-5xl mx-auto w-full">
+        <div className="max-w-6xl mx-auto w-full item">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center text-[#0F1724] mb-4 sm:mb-6">
             ✨ Explore Features
           </h2>
           
           {/* 4-column grid on large screens, 2 columns on medium, 1 on mobile */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1 sm:gap-4">
             {features.map((feature) => {
               const colorClasses = getColorClasses(feature.color);
               return (
@@ -165,7 +172,7 @@ const HomePage = () => {
 
       {/* Footer - Compact */}
       <footer className="bg-[#0F1724] text-white/80 py-3 px-4 text-center flex-shrink-0">
-        <p className="text-xs sm:text-sm">🎯 TAI-tutor-ai • Local AI Tutoring for Developers</p>
+        <p className="text-xs sm:text-sm">🎯 TAI-tutor-ai • Local AI Tutoring for Students</p>
       </footer>
     </div>
   );
