@@ -265,7 +265,7 @@
 
 /* Quiz List */
 .quiz-list-section h2 {
-  padding: 1rem 1.25rem;
+  /* padding: 1rem 1.25rem; */
   margin: 0;
   background: var(--color-bg-secondary, #f8f9fa);
   border-bottom: 1px solid var(--color-border, #e0e0e0);

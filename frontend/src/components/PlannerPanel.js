@@ -3,6 +3,7 @@ import { DEFAULT_BACKEND_URL } from "../config";
 import { apiGet, apiPost } from "../services/http";
 import { authService } from "../services/authService";
 import { renderPlanMarkdown } from "../utils/planFormatter";
+import "../styles/PlannerPage.css";
 
 function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   const [token, setToken] = useState("");
@@ -366,38 +367,11 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     }
   };
 
-  const containerStyle = { width: "100%", margin: "0 auto" };
-
-  // Use centralized plan formatter for previews
-
-  // layout: left sidebar (list) + right sidebar (controls + detail/edit)
-  const leftStyle = {
-    width: "10%",
-    minWidth: 220,
-    borderRight: "1px solid #eee",
-    paddingRight: 12,
-  };
-  const rightStyle = { flex: 1, paddingLeft: 12 };
-
   // --- Small subcomponents for readability (kept inside same file) ---
   const LoadingSpinner = () => (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 240 }}>
-      <style>{`
-        .spinner {
-          border: 4px solid rgba(0, 0, 0, 0.1);
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border-left-color: #09f;
-          animation: spin 1s ease infinite;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+    <div className="planner-loading-container">
       <div className="spinner"></div>
-      <span style={{ marginLeft: '10px' }}>Please wait, Generating Your Personalized Plan...</span>
+      <span className="planner-loading-text">Please wait, Generating Your Personalized Plan...</span>
     </div>
   );
   // --- View Components ---
@@ -410,15 +384,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     renderPlanMarkdown,
     LoadingSpinner
   }) => (
-    <div
-      className="muted"
-      style={{
-        padding: 12,
-        minHeight: 240,
-        border: "1px dashed #eee",
-        borderRadius: 6,
-      }}
-    >
+    <div className="muted planner-create-view">
       {isGenerating ? (
         <LoadingSpinner />
       ) : !hasUnsavedGeneratedPlan ? (
@@ -429,12 +395,12 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             <textarea
               value={planText}
               onChange={(e) => setPlanText(e.target.value)}
-              style={{ width: "100%", minHeight: 160, padding: 12, boxSizing: "border-box" }}
+              className="planner-textarea"
             />
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div className="planner-preview-section">
             <h4>Generated Plan Preview</h4>
-            <div style={{ background: "#fafafa", padding: 12 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || generatedPlan) }} />
+            <div className="planner-preview-content" dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || generatedPlan) }} />
           </div>
         </div>
       )}
@@ -457,13 +423,13 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
               value={planText}
               onChange={(e) => setPlanText(e.target.value)}
               placeholder={"Edit the selected plan here."}
-              style={{ width: "100%", minHeight: 160, padding: 12, boxSizing: "border-box" }}
+              className="planner-textarea"
             />
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div className="planner-preview-section">
             <h4>Formatted Preview</h4>
             <div
-              style={{ background: "#fafafa", padding: 35 }}
+              className="planner-preview-content-large"
               dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(planText || (selectedPlan && selectedPlan.text) || "") }}
             />
           </div>
@@ -476,19 +442,19 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
     selectedPlan,
     renderPlanMarkdown
   }) => (
-    <div className="card" style={{ padding: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="card planner-plan-preview-card">
+      <div className="planner-plan-preview-header">
         <div>
-          <strong style={{ fontSize: 18 }}>{selectedPlan?.name || "Untitled plan"}</strong>
-          <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
-            <div className="muted small-text" style={{ fontSize: 13 }}>Owner: <strong style={{fontWeight:500}}>{selectedPlan?.owner || "unknown"}</strong></div>
-            <div className="muted small-text" style={{ fontSize: 13 }}>Created: <strong style={{fontWeight:500}}>{formatDateFriendly(selectedPlan?.created_at)}</strong></div>
+          <strong className="planner-plan-preview-title">{selectedPlan?.name || "Untitled plan"}</strong>
+          <div className="planner-plan-preview-meta">
+            <div className="muted small-text planner-plan-preview-meta-item">Owner: <strong className="planner-plan-preview-meta-value">{selectedPlan?.owner || "unknown"}</strong></div>
+            <div className="muted small-text planner-plan-preview-meta-item">Created: <strong className="planner-plan-preview-meta-value">{formatDateFriendly(selectedPlan?.created_at)}</strong></div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }} />
+        <div className="planner-plan-preview-actions" />
       </div>
-      <div style={{ marginTop: 12 }}>
-        <div style={{ background: "#fafafa", padding: 35 }} dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
+      <div className="planner-plan-preview-body">
+        <div className="planner-preview-content-large" dangerouslySetInnerHTML={{ __html: renderPlanMarkdown(selectedPlan?.text || "No plan loaded") }} />
       </div>
     </div>
   );
@@ -516,14 +482,12 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
   }
 
   return (
-    <div className="planner-panel card" style={containerStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <h3 style={{ margin: 0 }}>Planner</h3>
+    <div className="planner-panel card planner-panel-container">
+      {/* <div className="planner-header">
         <button
           title="Create new plan"
-          className="btn"
+          className="btn planner-new-btn"
           aria-label="Create new plan"
-          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, padding: 6, borderRadius: 6 }}
           onClick={() => {
             setView("new");
             setSelectedPlan(null);
@@ -533,56 +497,59 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             setIsEditingSaved(false);
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="0" y="0" width="24" height="24" rx="4" fill="transparent" />
-            <path d="M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          + Create New Plan
         </button>
-      </div>
+      </div> */}
 
       {/* dev-mode user id input removed; app no longer depends on auth_disabled/default_dev_user */}
 
-      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+      <div className="planner-main-layout">
         {/* Left sidebar: list of plans (title + date only) */}
-        <div style={leftStyle}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <h4 style={{ margin: 0 }}>Plans</h4>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span className="muted small-text">{plans.length}</span>
-              <button className="btn secondary" onClick={refreshSavedPlans}>
-                Refresh
-              </button>
-            </div>
+        <div className="planner-left-sidebar">
+          <div className="planner-header-createplan">
+            <button
+              title="Create new plan"
+              className="planner-new-btn btn"
+              aria-label="Create new plan"
+              onClick={() => {
+                setView("new");
+                setSelectedPlan(null);
+                setRequirements("");
+                setPlanText("");
+                setGeneratedPlan("");
+                setIsEditingSaved(false);
+              }}
+            >
+              + Create New Plan
+            </button>
           </div>
-          <div style={{ marginTop: 8 }}>
+          <div className="planner-plans-header">
+            <h4>Saved Plans ({plans.length})</h4>
+            {/* <div className="planner-plans-count"> */}
+              {/* <span className="muted small-text">{plans.length}</span> */}
+              <button className="refresh-btn" onClick={refreshSavedPlans}>
+                ⟳
+              </button>
+            {/* </div> */}
+          </div>
+          <div className="planner-filter-container">
             <input
               placeholder="Filter plans"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "6px 8px",
-                boxSizing: "border-box",
-              }}
+              className="planner-filter-input"
             />
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div className="planner-plans-list-container">
             {hasUnsavedGeneratedPlan && (
-              <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
+              <div className="muted planner-unsaved-notice">
                 You are reviewing a newly-generated plan. Existing saved plans
                 are temporarily non-interactive until you Save or Clear the new
                 plan.
               </div>
             )}
             {savedPlansError && (
-              <p className="muted" style={{ color: "crimson" }}>
+              <p className="muted planner-error-text">
                 {savedPlansError}
               </p>
             )}
@@ -592,7 +559,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             {!savedPlansError && !savedPlansLoading && plans.length === 0 && (
               <p className="muted">No plans yet</p>
             )}
-            <ul style={{ listStyle: "none", padding: 0 }}>
+            <ul className="planner-plans-list">
               {plans
                 .filter((p) =>
                   filterText
@@ -606,19 +573,11 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                     selectedPlan &&
                     (selectedPlan.name === (p.name || p.filename) ||
                       selectedPlan.text === (p.plan_text || p.text || ""));
-                  const disabledStyle = hasUnsavedGeneratedPlan
-                    ? { opacity: 0.6, cursor: "not-allowed", pointerEvents: "none" }
-                    : { cursor: "pointer" };
+                  const itemClasses = `planner-plan-item ${isSelected ? 'selected' : ''} ${hasUnsavedGeneratedPlan ? 'disabled' : ''}`;
                   return (
                     <li
                       key={p.path || p.filename || p.id || idx}
-                      style={{
-                        marginBottom: 8,
-                        padding: 8,
-                        borderRadius: 6,
-                        background: isSelected ? "#f6f9ff" : "transparent",
-                        ...disabledStyle,
-                      }}
+                      className={itemClasses}
                       onClick={hasUnsavedGeneratedPlan ? undefined : () => {
                         console.info("Selected plan:", p);
                         setSelectedPlan({
@@ -634,17 +593,11 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                         setPlanText("");
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <strong style={{ fontSize: 14 }}>
+                      <div className="planner-plan-item-content">
+                        <strong className="planner-plan-name">
                           {p.name || p.id || p.filename || `plan-${idx + 1}`}
                         </strong>
-                        <span className="muted small-text" style={{ fontSize: 11 }}>
+                        <span className="muted small-text planner-plan-date">
                           {(p.created_at || p.created || "").split("T")[0]}
                         </span>
                       </div>
@@ -656,9 +609,9 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
         </div>
 
         {/* Right sidebar: row1 controls, row2 detail/edit */}
-        <div style={rightStyle}>
+        <div className="planner-right-sidebar">
           {/* Row 1: controls */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="planner-controls-row">
             {(view !== "preview" || isEditingSaved) && (
               <input
                 placeholder="Enter instructions to create a plan"
@@ -666,7 +619,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                 onChange={(e) => {
                   setRequirements(e.target.value);
                 }}
-                style={{ flex: 1, padding: "8px 10px" }}
+                className="planner-requirements-input"
                 aria-label="plan-requirements"
               />
             )}
@@ -691,7 +644,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                       Create New Plan
                     </button>
                     <button
-                      className="btn secondary"
+                      className="btn secondary clear-btn"
                       onClick={() => {
                         // Clear inputs for new plan creation and refresh page
                         setRequirements("");
@@ -759,7 +712,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
                   Edit Plan
                 </button>
                 <button
-                  className="btn secondary"
+                  className="btn secondary clear-btn"
                   onClick={() => {
                     // Delete the selected plan
                     if (selectedPlan && selectedPlan.path) {
@@ -847,7 +800,7 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
           </div>
 
           {/* Row 2: editable area for editing saved plan; New view shows requirement + preview; Saved shows formatted view */}
-          <div style={{ marginTop: 12 }}>
+          <div className="planner-content-area">
             {view === "edit" && isEditingSaved && (
               <EditUpdatePlanView
                 isGenerating={isGenerating}
@@ -877,40 +830,34 @@ function PlannerPanel({ backendURL = DEFAULT_BACKEND_URL }) {
             )}
             {/* fallback when no view matches */}
             {(!isEditingSaved && view !== "new" && view !== "preview" && !selectedPlan) && (
-              <div
-                className="muted"
-                style={{
-                  padding: '20px',
-                  minHeight: 240,
-                  border: "1px dashed #eee",
-                  borderRadius: 6,
-                }}
-              >
+              <div className="muted planner-empty-state">
                 Select a plan from the left or Provide instructions to create a
                 new plan...
               </div>
             )}
           </div>
 
-          <div aria-live="polite" style={{ marginTop: 12 }}>
+          <div aria-live="polite" className="planner-message-container">
             {msg && (() => {
               const meta = getMessageMeta(msg);
-              const baseStyle = { padding: '10px 12px', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'center' };
-              let style = { ...baseStyle, background: '#eef2ff', color: '#073b4c', border: '1px solid #e2e8f0' };
+              let messageClass = 'planner-message info';
+              let iconClass = 'planner-message-icon info';
               let icon = null;
               if (meta.type === 'error') {
-                style = { ...baseStyle, background: '#fff5f5', color: '#7f1d1d', border: '1px solid #fecaca' };
-                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>);
+                messageClass = 'planner-message error';
+                iconClass = 'planner-message-icon warning';
+                icon = (<span className={iconClass}>⚠️</span>);
               } else if (meta.type === 'success') {
-                style = { ...baseStyle, background: '#f0fdf4', color: '#065f46', border: '1px solid #bbf7d0' };
-                icon = (<span style={{ fontSize: 18, lineHeight: 1 }}>✅</span>);
+                messageClass = 'planner-message success';
+                iconClass = 'planner-message-icon success';
+                icon = (<span className={iconClass}>✅</span>);
               } else {
-                icon = (<span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>);
+                icon = (<span className={iconClass}>ℹ️</span>);
               }
               return (
-                <div style={style} role={meta.type === 'error' ? 'alert' : 'status'}>
+                <div className={messageClass} role={meta.type === 'error' ? 'alert' : 'status'}>
                   {icon}
-                  <div style={{ fontSize: 14, lineHeight: 1.3 }}>{msg}</div>
+                  <div className="planner-message-text">{msg}</div>
                 </div>
               );
             })()}

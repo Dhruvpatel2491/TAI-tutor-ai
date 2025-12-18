@@ -12,7 +12,8 @@ import CodeQuestFeedbackPage from './pages/CodeQuestFeedbackPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import PlannerPanel from './components/PlannerPanel';
+// import PlannerPanel from './components/PlannerPanel';
+import PlannerPage from './pages/PlannerPage';
 import { authService } from './services/authService';
 
 function Header() {
@@ -139,7 +140,7 @@ function App() {
               <Route path="/register" element={<RegistrationPage />} />
               <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-              <Route path="/planner" element={<ProtectedRoute><PlannerPanel /></ProtectedRoute>} />
+              <Route path="/planner" element={<ProtectedRoute><PlannerPage /></ProtectedRoute>} />
               <Route path="/quiz" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
               <Route path="/codequest" element={<ProtectedRoute><CodeQuestDashboardPage /></ProtectedRoute>} />
               <Route path="/codequest/:sessionId" element={<ProtectedRoute><CodeQuestSessionPage /></ProtectedRoute>} />
