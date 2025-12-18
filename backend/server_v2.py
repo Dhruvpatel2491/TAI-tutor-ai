@@ -45,6 +45,7 @@ try:
         MockResponseV2,
         MockResponseV3,
     )
+    from rag.llm_router import route_query, QueryIntent
 except ImportError:
     pass
 
@@ -244,7 +245,12 @@ def query_v2():
 def query_v3():
     """
     POST /query_v3
-    Enhanced query with prompt customization, history, and caching.
+    Enhanced query with prompt customization, history, caching, and intelligent routing.
+    
+    When response_type is 'auto', an LLM router determines:
+    - Whether RAG retrieval is needed
+    - Which response type (hint/socratic) to use
+    - Whether to generate code directly without retrieval
     """
     payload = request.get_json(force=True, silent=True) or {}
     question = payload.get("question") or payload.get("q") or ""
@@ -264,22 +270,121 @@ def query_v3():
     if not isinstance(conversation_history, list):
         conversation_history = []
 
+    # AUTO MODE: Route the query through LLM router
+    routing_decision = None
+    original_response_type = response_type
+    
+    if response_type == "auto":
+        try:
+            routing_decision = route_query(question, conversation_history)
+            logger.info(f"Router decision: {routing_decision.to_dict()}")
+            print(f"Router decision: {routing_decision.to_dict()}")
+            # Override response_type with router's decision
+            response_type = routing_decision.response_type.value
+            
+            # If router says no retrieval needed, handle code generation directly
+            if not routing_decision.needs_retrieval:
+                if routing_decision.intent == QueryIntent.CODE_GENERATION:
+                    logger.info("Handling code generation without RAG retrieval")
+                    try:
+                        from llama_index.llms.ollama import Ollama
+                        
+                        code_gen_llm = Ollama(
+                            model=requested_model, 
+                            temperature=temp, 
+                            max_tokens=max_toks, 
+                            request_timeout=300
+                        )
+                        
+                        # Build prompt without RAG context
+                        prompter = ChatPrompter.from_history_list(
+                            history=conversation_history,
+                            style=style,
+                            response_type=response_type,
+                            length=length
+                        )
+                        code_prompt = prompter.build_full_prompt(question)
+                        
+                        # Generate directly
+                        response = code_gen_llm.complete(code_prompt)
+                        answer_text = str(response)
+                        
+                        return jsonify({
+                            "answer": answer_text,
+                            "cached": False,
+                            "style": style,
+                            "response_type": response_type,
+                            "original_response_type": original_response_type,
+                            "length": length,
+                            "routing": routing_decision.to_dict(),
+                            "used_rag": False
+                        }), 200
+                        
+                    except Exception as e:
+                        logger.exception("Code generation without RAG failed")
+                        # Fall through to RAG path as fallback
+                        pass
+                
+                elif routing_decision.intent == QueryIntent.GENERAL_CONVERSATION:
+                    logger.info("Handling general conversation without RAG retrieval")
+                    try:
+                        from llama_index.llms.ollama import Ollama
+                        
+                        chat_llm = Ollama(
+                            model=requested_model, 
+                            temperature=temp, 
+                            max_tokens=max_toks, 
+                            request_timeout=300
+                        )
+                        
+                        # Simple conversational response
+                        response = chat_llm.complete(question)
+                        answer_text = str(response)
+                        
+                        return jsonify({
+                            "answer": answer_text,
+                            "cached": False,
+                            "style": style,
+                            "response_type": response_type,
+                            "original_response_type": original_response_type,
+                            "length": length,
+                            "routing": routing_decision.to_dict(),
+                            "used_rag": False
+                        }), 200
+                        
+                    except Exception as e:
+                        logger.exception("General conversation handling failed")
+                        # Fall through to RAG path as fallback
+                        pass
+        
+        except Exception as e:
+            logger.exception("Router failed, using default RAG path")
+            # Fall back to socratic if routing fails
+            response_type = "socratic"
+
+    # Check cache (only if not using conversation history)
     use_cache = payload.get("use_cache", True)
     if use_cache and not conversation_history:
         cached_response = _response_cache.get(question, style, response_type, length, requested_model)
         if cached_response:
-            return jsonify({
+            result = {
                 "answer": cached_response,
                 "cached": True,
                 "style": style,
                 "response_type": response_type,
-                "length": length
-            }), 200
+                "length": length,
+                "used_rag": True
+            }
+            if routing_decision:
+                result["routing"] = routing_decision.to_dict()
+                result["original_response_type"] = original_response_type
+            return jsonify(result), 200
 
     rebuild = bool(payload.get("rebuild", False))
     indexing = payload.get("indexing") or {}
     retrieval = payload.get("retrieval") or {}
 
+    # RAG PATH: Standard retrieval-augmented generation
     try:
         from llama_index.llms.ollama import Ollama
         
@@ -313,13 +418,20 @@ def query_v3():
         if use_cache and not conversation_history:
             _response_cache.set(question, style, response_type, length, requested_model, answer_text)
 
-        return jsonify({
+        result = {
             "answer": answer_text,
             "cached": False,
             "style": style,
             "response_type": response_type,
-            "length": length
-        }), 200
+            "length": length,
+            "used_rag": True
+        }
+        
+        if routing_decision:
+            result["routing"] = routing_decision.to_dict()
+            result["original_response_type"] = original_response_type
+        
+        return jsonify(result), 200
 
     except Exception as e:
         logger.exception("Query v3 failed")

@@ -22,7 +22,8 @@ const MODEL_GROUPS = {
   fast: [
     'gemma:7b',
     'codegemma:7b',
-    'llama3:8b'
+    'llama3:8b',
+    'deepseek-r1:14b'
   ],
   balanced: [
     'codellama:34b',
@@ -52,6 +53,7 @@ const MODEL_DISPLAY_NAMES = {
   'gemma:7b': 'Gemma 7B',
   'codegemma:7b': 'CodeGemma 7B',
   'llama3:8b': 'Llama3 8B',
+  'deepseek-r1:14b': 'DeepSeek R1 14B',
 
   'codellama:34b': 'CodeLlama 34B',
   'gpt-oss:20b': 'GPT-OSS 20B',
@@ -88,9 +90,9 @@ const RESPONSE_STYLES = [
 ];
 
 const RESPONSE_TYPES = [
-  { value: 'direct', label: 'Direct' },
-  { value: 'hinting', label: 'Hinting' },
-  { value: 'socratic', label: 'Socratic' }
+  { value: 'hinting', label: 'Hint' },
+  { value: 'socratic', label: 'Socratic' },
+  { value: 'auto', label: 'Auto (default)' }
 ];
 
 // Use centralized frontend config for backend URL
@@ -115,7 +117,7 @@ const ChatbotInterface = () => {
 
   // State - Response Configuration
   const [responseStyle, setResponseStyle] = useState('formal');
-  const [responseType, setResponseType] = useState('direct');
+  const [responseType, setResponseType] = useState('auto');
   const [responseLength, setResponseLength] = useState('short');
 
   // State - Backend Connection

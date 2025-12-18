@@ -75,14 +75,6 @@ class ChatPrompter:
     
     # Response Type Templates
     TYPE_TEMPLATES = {
-        "direct": """Provide a direct, clear, and well-structured answer to the question. 
-Give a complete explanation that helps the student understand the concept, not just the solution.
-- Be comprehensive yet concise
-- Explain the reasoning and context
-- Include examples when helpful
-- Highlight key takeaways
-- Maintain educational value even when providing direct answers""",
-        
         "hinting": """Guide the student toward discovering the answer through strategic hints and scaffolding. 
 This promotes active learning and deeper understanding. Do NOT give the direct answer immediately. Instead:
 1. Acknowledge their question and what they're trying to accomplish
@@ -100,7 +92,14 @@ Instead of providing direct answers, engage in a dialogue that leads students to
 4. Build on their responses to lead them toward the correct understanding
 5. Celebrate their discoveries and insights, reinforcing positive learning behaviors
 6. Encourage deeper exploration by asking "what if" or "why do you think" questions
-Focus on developing their problem-solving skills and metacognition."""
+Focus on developing their problem-solving skills and metacognition.""",
+        
+        "auto": """AUTO MODE: This response type is determined automatically by an intelligent router.
+The router analyzes the question and chooses the most appropriate teaching approach:
+- For conceptual questions: Uses Socratic method to guide discovery
+- For problem-solving tasks: Provides hints to scaffold learning
+- For code generation: May generate directly without retrieval if appropriate
+This template should not be used directly - it's replaced by 'hinting' or 'socratic' after routing."""
     }
     
     # Response Length Guidelines
@@ -168,7 +167,7 @@ redirect the conversation toward legitimate educational goals."""
             conversation_history: Optional list of previous conversation messages
         """
         self.style = style.lower() if style else "formal"
-        self.response_type = response_type.lower() if response_type else "direct"
+        self.response_type = response_type.lower() if response_type else "auto"
         self.length = length.lower() if length else "medium"
         self.conversation_history = conversation_history or []
         
@@ -176,7 +175,7 @@ redirect the conversation toward legitimate educational goals."""
         if self.style not in self.STYLE_TEMPLATES:
             self.style = "formal"
         if self.response_type not in self.TYPE_TEMPLATES:
-            self.response_type = "direct"
+            self.response_type = "auto"
         if self.length not in self.LENGTH_GUIDELINES:
             self.length = "medium"
     

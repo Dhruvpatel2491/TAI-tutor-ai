@@ -452,9 +452,9 @@ def validate_style(style: Optional[str]) -> str:
 
 def validate_response_type(response_type: Optional[str]) -> str:
     """Validate and normalize response type parameter."""
-    response_type = (response_type or "direct").lower()
-    if response_type not in ["direct", "hinting", "socratic"]:
-        return "direct"
+    response_type = (response_type or "auto").lower()
+    if response_type not in ["hinting", "socratic", "auto"]:
+        return "auto"
     return response_type
 
 
