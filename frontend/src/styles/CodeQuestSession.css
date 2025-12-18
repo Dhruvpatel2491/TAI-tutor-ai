@@ -238,7 +238,7 @@
 }
 
 .codequest-card.active {
-  border-color: var(--color-primary, #007bff);
+  border-color: var(--color-tertiary, #D5BF85);
 }
 
 .codequest-card-row {
@@ -396,7 +396,7 @@
   line-height: 1;
 }
 .codequest-btn-icon:hover {
-  color: var(--color-primary, #007bff);
+  color: var(--color-tertiary, #D5BF85);
 }
 
 /* Stats card visuals and compact stat bar */
@@ -411,7 +411,7 @@
 .codequest-stat-card .stat-value {
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--color-primary, #007bff);
+  color: var(--color-tertiary-dark, #9C7F35);
 }
 .codequest-stat-card .stat-label {
   font-size: 0.8rem;
@@ -429,7 +429,7 @@
 }
 .codequest-stat-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary, #007bff), #5ab0ff);
+  background: linear-gradient(90deg, var(--color-tertiary, #D5BF85), var(--color-tertiary-hover, #CAAD63));
   transition: width 0.5s ease;
 }
 
@@ -481,7 +481,7 @@
 .codequest-card:hover:not(:disabled) {
   transform: translateY(-6px);
   box-shadow: 0 10px 24px rgba(11, 21, 40, 0.06);
-  border-color: rgba(0, 123, 255, 0.12);
+  border-color: var(--color-tertiary, #D5BF85);
 }
 
 /* nicer pre/code blocks */
@@ -507,10 +507,10 @@
 }
 
 .codequest-actions .btn-primary {
-  background: linear-gradient(180deg, var(--color-primary, #007bff), #0069e6);
+  background: linear-gradient(180deg, var(--color-tertiary, #D5BF85), var(--color-tertiary-dark, #9C7F35));
   color: #fff;
   border: none;
-  box-shadow: 0 6px 18px rgba(0,123,255,0.12);
+  box-shadow: 0 6px 18px rgba(213, 191, 133, 0.3);
 }
 
 .codequest-actions .btn-primary:hover {

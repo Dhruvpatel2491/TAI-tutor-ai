@@ -307,7 +307,7 @@
   padding: 0px 15px;
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 40vh;
+  max-height: 30vh;
   height: 100%;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e0 #f7fafc;
@@ -379,7 +379,7 @@
 
 /* Enhanced card styling for planner panel */
 .planner-page .planner-panel.card {
-  background: var(--color-bg-secondary);
+  background: var(--color-secondary-light);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   padding: 24px;

@@ -14,6 +14,15 @@
   overflow-y: auto;
 }
 
+.quiz-page.dashboard-view.codequest-dashboard-page{
+  background: var(--color-tertiary-light, #f0f4f8);
+  padding: 1rem;
+  max-width: var(--window-width);
+  margin: 0 auto;
+  height: calc(100vh - 80px);
+  border-radius: 12px;
+}
+
 .codequest-row {
   display: flex;
   gap: 0.75rem;
@@ -39,20 +48,29 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--color-border, #e0e0e0);
-  background: var(--color-bg-secondary, #f8f9fa);
+  border: 1px solid var(--color-tertiary, #D5BF85);
+  background: var(--color-tertiary-light, rgba(213, 191, 133, 0.3));
   border-radius: 999px;
   font-size: 0.85rem;
-  color: var(--color-text-secondary, #666);
+  color: var(--color-tertiary-dark, #9C7F35);
 }
 
+.btn.full-width.create-codequest {
+  background-color: var(--color-tertiary-dark, #9C7F35);
+  color: var(--color-bg-primary, #fff);
+  border: none;
+}
+.stat-card.enhanced .stat-value {
+  color: var(--color-tertiary-dark, #9C7F35);
+  
+}
 .codequest-tag-remove {
   border: none;
   background: transparent;
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  color: var(--color-text-secondary, #666);
+  color: var(--color-tertiary-dark, #9C7F35);
 }
 
 .codequest-modal-overlay {
@@ -71,7 +89,7 @@
   height: 80vh;
   max-height: min(80vh, 720px);
   background: var(--color-bg-primary, #fff);
-  border: 1px solid var(--color-border, #e0e0e0);
+  border: 1px solid var(--color-tertiary, #D5BF85);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -85,8 +103,8 @@
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-  background: var(--color-bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--color-tertiary, #D5BF85);
+  background: var(--color-tertiary-light, rgba(213, 191, 133, 0.3));
 }
 
 .codequest-modal-body {
@@ -96,10 +114,10 @@
 }
 
 .codequest-plan-preview {
-  border: 1px solid var(--color-border, #e0e0e0);
+  border: 1px solid var(--color-tertiary, #D5BF85);
   border-radius: 8px;
   padding: 0.75rem;
-  background: var(--color-bg-primary, #fff);
+  background: var(--color-tertiary-background, #fff);
   max-height: 220px;
   overflow: hidden;
 }
@@ -122,7 +140,7 @@
   gap: 0.5rem;
   align-items: center;
   font-size: 0.9rem;
-  color: var(--color-text-primary, #333);
+  color: var(--color-tertiary-dark, #9C7F35);
 }
 
 /* Old CodeQuests list spacing */
@@ -134,7 +152,7 @@
 
 .simple-quest-item {
   padding: 0.75rem 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--color-tertiary-light, rgba(213, 191, 133, 0.3));
 }
 
 .simple-quest-item:last-child {

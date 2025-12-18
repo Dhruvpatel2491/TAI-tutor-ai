@@ -90,7 +90,7 @@ export default function CodeQuestFeedbackPage() {
     return (
       <div className="quiz-page" style={{ padding: 16 }}>
         <h2>CodeQuest Feedback</h2>
-        <div className="card" style={{ borderLeft: '4px solid var(--primary)', marginTop: 12 }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--color-tertiary)', marginTop: 12 }}>
           <strong>Error</strong>
           <div className="muted text-danger" style={{ marginTop: 6 }}>{error}</div>
         </div>

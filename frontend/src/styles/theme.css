@@ -29,6 +29,7 @@
   --color-primary: #53A2A7;
   --color-primary-hover: #30838c;
   --color-primary-light: rgba(83, 162, 167, 0.3);
+  --color-primary-background: rgba(83, 162, 167, 0.1);
   --color-primary-dark: #30838C;
   
   /* Accent colors from new palette */

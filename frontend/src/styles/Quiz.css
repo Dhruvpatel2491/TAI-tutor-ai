@@ -11,12 +11,15 @@
    ============================================================================ */
 
 .quiz-page {
+  background: var(--color-primary-background, #f0f4f8);
+  padding: 1rem;
   max-width: var(--window-width);
   margin: 0 auto;
   height: calc(100vh - 80px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  border-radius: 12px;
 }
 
 /* Make the page full height and no scrollbar */

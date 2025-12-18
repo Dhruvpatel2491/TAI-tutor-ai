@@ -200,7 +200,7 @@ export default function CodeQuestDashboardPage() {
 
   if (loading) {
     return (
-      <div className="quiz-page dashboard-view">
+      <div className="quiz-page dashboard-view codequest-dashboard-page">
         <div className="muted" style={{ padding: 16 }}>Loading…</div>
       </div>
     );
@@ -213,7 +213,7 @@ export default function CodeQuestDashboardPage() {
   const answeredQuestions = Number(q.answered_questions ?? (correctAnswers + incorrectAnswers));
 
   return (
-    <div className="quiz-page dashboard-view">
+    <div className="quiz-page dashboard-view codequest-dashboard-page">
       <div className="quiz-dashboard">
         {/* Left */}
         <div className="dashboard-left">
@@ -447,7 +447,7 @@ export default function CodeQuestDashboardPage() {
               </div>
 
               <div className="dashboard-actions">
-                <button className="btn full-width" type="button" onClick={startNew} disabled={starting || !resolvedTrack}>
+                <button className="btn full-width create-codequest" type="button" onClick={startNew} disabled={starting || !resolvedTrack}>
                   {starting ? (<><span className="spinner small"></span> Creating…</>) : 'Create CodeQuest Challenges'}
                 </button>
               </div>
