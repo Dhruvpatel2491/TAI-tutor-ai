@@ -10,7 +10,10 @@ import sys
 import os
 
 # Add backend to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+project_root = os.path.join(os.path.dirname(__file__), '..')
+backend_dir = os.path.join(project_root, 'backend')
+sys.path.insert(0, project_root)
+sys.path.insert(0, backend_dir)
 
 from rag.llm_router import (
     LLMRouter,

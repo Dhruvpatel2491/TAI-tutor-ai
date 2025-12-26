@@ -18,11 +18,15 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Import the chat_manager module
+# Import the chat module from new backend structure
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+# Add both project root and backend directory to path
+project_root = os.path.join(os.path.dirname(__file__), '..')
+backend_dir = os.path.join(project_root, 'backend')
+sys.path.insert(0, project_root)
+sys.path.insert(0, backend_dir)
 
-from chat_manager import (
+from modules.chat import (
     ChatMessage,
     ChatSession,
     ChatManager,
@@ -540,7 +544,7 @@ class TestConvenienceFunctions:
     @pytest.fixture(autouse=True)
     def reset_global_manager(self, temp_store_dir):
         """Reset the global manager for each test."""
-        import chat_manager as cm
+        from modules import chat as cm
         cm._chat_manager = ChatManager(store_dir=temp_store_dir)
         yield
         cm._chat_manager = None

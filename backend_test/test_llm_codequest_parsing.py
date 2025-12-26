@@ -3,13 +3,18 @@ import os
 import sys
 import pytest
 
-# Ensure repository root is on sys.path so `from backend import ...` works when tests
+# Ensure repository root is on sys.path so imports work when tests
 # are executed directly.
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+backend_dir = os.path.join(ROOT, 'backend')
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
-from backend import llm_codequest as lc
+# Import LLM helper functions from codequest module
+# (these are embedded in modules.codequest now)
+from modules import codequest as lc
 
 
 VALID_ITEM = {

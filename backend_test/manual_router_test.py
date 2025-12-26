@@ -9,8 +9,11 @@ Run this after starting the backend server.
 import requests
 import json
 import sys
+import os
 
-BACKEND_URL = "http://localhost:5001"
+# Get backend URL from environment or use default
+BACKEND_PORT = os.environ.get("BACKEND_PORT", "5000")
+BACKEND_URL = f"http://localhost:{BACKEND_PORT}"
 
 def test_query(question, response_type="auto", description=""):
     """Send a query and display the routing decision."""

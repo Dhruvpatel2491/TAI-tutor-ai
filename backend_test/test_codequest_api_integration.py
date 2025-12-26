@@ -15,14 +15,20 @@ import tempfile
 import shutil
 import pytest
 
-# Add backend to path (same pattern as other integration tests)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+# Set auth disabled BEFORE importing backend modules
+os.environ['DISABLE_AUTH'] = 'true'
 
-from server import app
-import codequest_manager as cqm
+# Add backend to path (same pattern as other integration tests)
+project_root = os.path.join(os.path.dirname(__file__), '..')
+backend_dir = os.path.join(project_root, 'backend')
+sys.path.insert(0, project_root)
+sys.path.insert(0, backend_dir)
+
+from server_v2 import app
+from modules import codequest as cqm
 
 try:
-    import codequest_manager as bcqm  # type: ignore
+    from modules import codequest as bcqm  # type: ignore
 except Exception:
     bcqm = None
 
